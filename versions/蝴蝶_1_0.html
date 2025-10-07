@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D机械仿生蝴蝶 - 曲柄摇杆机构</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #111827;
+            color: #e5e7eb;
+            overflow: hidden; /* 防止滚动条出现 */
+        }
+        #mechanism-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="absolute top-0 left-0 w-full p-4 text-center z-10 pointer-events-none">
+        <h1 class="text-3xl font-bold text-white mb-2">3D 机械仿生蝴蝶核心机构</h1>
+        <p class="text-lg text-gray-400">
+            动画演示了两个镜像对称的曲柄-摇杆（Crank-Rocker）四杆机构。
+        </p>
+        <p class="text-sm text-gray-500">提示：可用鼠标拖动旋转、滚轮缩放、右键平移视角。</p>
+    </div>
+
+    <div class="absolute inset-0 z-0">
+        <canvas id="mechanism-canvas"></canvas>
+    </div>
+
+    <div class="absolute bottom-0 left-0 w-full p-4 z-10">
+        <div class="max-w-4xl mx-auto p-4 bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                    <span class="block text-sm text-gray-400">曲柄 (a)</span>
+                    <span class="block font-mono text-lg text-amber-400" id="val_a">30 mm</span>
+                </div>
+                <div>
+                    <span class="block text-sm text-gray-400">连杆 (b)</span>
+                    <span class="block font-mono text-lg text-emerald-400" id="val_b">85 mm</span>
+                </div>
+                <div>
+                    <span class="block text-sm text-gray-400">摇杆 (c / 翅膀)</span>
+                    <span class="block font-mono text-lg text-violet-400" id="val_c">75 mm</span>
+                </div>
+                <div>
+                    <span class="block text-sm text-gray-400">机架 (d)</span>
+                    <span class="block font-mono text-lg text-gray-400" id="val_d">90 mm</span>
+                </div>
+            </div>
+            <div class="mt-4">
+                 <label for="speed-slider" class="text-sm text-gray-400">动画速度</label>
+                 <input id="speed-slider" type="range" min="1" max="10" value="3" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+    (function() {
+        // --- 核心运动学函数 (不变) ---
+        function circleIntersections(x0, y0, r0, x1, y1, r1) {
+            const dx = x1 - x0, dy = y1 - y0;
+            const d = Math.hypot(dx, dy);
+            if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return [];
+            const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d);
+            const h2 = r0 * r0 - a * a;
+            const h = Math.sqrt(Math.max(0, h2));
+            const xm = x0 + a * dx / d;
+            const ym = y0 + a * dy / d;
+            const rx = -dy * (h / d);
+            const ry = dx * (h / d);
+            return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }];
+        }
+
+        function choosePoint(p1, p2, mode) {
+            if (!p1) return null;
+            if (!p2) return p1;
+            return (mode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2);
+        }
+
+        // --- Three.js 初始化 ---
+        let scene, camera, renderer, controls;
+        const canvas = document.getElementById('mechanism-canvas');
+        
+        function init3D() {
+            scene = new THREE.Scene();
+            
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(50, aspect, 1, 5000);
+            camera.position.set(0, 150, -350); // 调整初始Z坐标，从另一面观察
+            
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 100);
+            scene.add(directionalLight);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // --- 主要设置 ---
+        const speedSlider = document.getElementById('speed-slider');
+        const params = { a: 30, b: 85, c: 75, d: 90 };
+        document.getElementById('val_a').textContent = `${params.a} mm`;
+        document.getElementById('val_b').textContent = `${params.b} mm`;
+        document.getElementById('val_c').textContent = `${params.c} mm`;
+        document.getElementById('val_d').textContent = `${params.d} mm`;
+        
+        const gearRadius = 20;
+        const linkRadius = 2.5;
+        const jointRadius = 4;
+        const pivotRadius = 4.5;
+        
+        const pivots = {
+            O2_L: { x: +gearRadius + params.d, y: 0 },
+            O4_L: { x: +gearRadius, y: 0 },
+            O2_R: { x: -gearRadius - params.d, y: 0 },
+            O4_R: { x: -gearRadius, y: 0 }
+        };
+
+        // --- 创建 3D 模型 ---
+        const mechanisms3D = {};
+        
+        const materials = {
+            crank: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.6, roughness: 0.4 }),
+            coupler: new THREE.MeshStandardMaterial({ color: '#34d399', metalness: 0.6, roughness: 0.4 }),
+            rocker: new THREE.MeshStandardMaterial({ color: '#a78bfa', metalness: 0.6, roughness: 0.4 }),
+            frame: new THREE.MeshStandardMaterial({ color: '#6b7280', metalness: 0.6, roughness: 0.4 }),
+            joint: new THREE.MeshStandardMaterial({ color: '#f87171', metalness: 0.4, roughness: 0.5 }),
+            pivot: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.4, roughness: 0.5 }),
+            wing: new THREE.MeshStandardMaterial({ color: '#a855f7', metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
+        };
+
+        function createMechanismModels() {
+            ['L', 'R'].forEach(side => {
+                const linkGeom = new THREE.CylinderGeometry(linkRadius, linkRadius, 1, 16);
+                linkGeom.translate(0, 0.5, 0);
+
+                mechanisms3D[`frame_${side}`] = new THREE.Mesh(linkGeom, materials.frame);
+                mechanisms3D[`coupler_${side}`] = new THREE.Mesh(linkGeom, materials.coupler);
+                mechanisms3D[`crank_${side}`] = new THREE.Mesh(linkGeom, materials.crank);
+                mechanisms3D[`rocker_${side}`] = new THREE.Mesh(linkGeom.clone(), materials.rocker);
+
+                const jointGeom = new THREE.SphereGeometry(jointRadius, 16, 16);
+                const pivotGeom = new THREE.SphereGeometry(pivotRadius, 16, 16);
+                mechanisms3D[`joint_O2_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot);
+                mechanisms3D[`joint_O4_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot);
+                // --- Bug修复：恢复joint_B的创建，并修正jointGeom的拼写错误 ---
+                mechanisms3D[`joint_B_${side}`] = new THREE.Mesh(jointGeom, materials.joint);
+                mechanisms3D[`joint_C_${side}`] = new THREE.Mesh(jointGeom, materials.joint);
+                
+                const wingShape = new THREE.Shape();
+                const c = params.c; 
+                const dir = (side === 'L') ? 1 : -1;
+
+                wingShape.moveTo(0, 0); 
+
+                wingShape.bezierCurveTo(
+                    c * 2.5 * dir, c * 2.2, 
+                    c * 3.5 * dir, c * 1.2, 
+                    c * 1.2 * dir, -c * 0.1 
+                );
+
+                wingShape.bezierCurveTo(
+                    c * 1.2 * dir, -c * 1.0, 
+                    c * 0.3 * dir, -c * 0.8, 
+                    0, 0                     
+                );
+
+                const wingGeom = new THREE.ShapeGeometry(wingShape);
+                const wingMesh = new THREE.Mesh(wingGeom, materials.wing);
+                
+                wingMesh.rotation.x = -Math.PI / 2;
+                
+                const angleY = Math.PI / 2;
+                if (side === 'R') {
+                    wingMesh.rotation.y = angleY;
+                } else {
+                    wingMesh.rotation.y = -angleY;
+                }
+                
+                const wingObject = new THREE.Object3D();
+                wingObject.add(wingMesh);
+                mechanisms3D[`wing_object_${side}`] = wingObject;
+                scene.add(wingObject);
+
+                scene.add(
+                    mechanisms3D[`frame_${side}`], mechanisms3D[`coupler_${side}`], mechanisms3D[`crank_${side}`],
+                    mechanisms3D[`rocker_${side}`], mechanisms3D[`joint_O2_${side}`], mechanisms3D[`joint_O4_${side}`],
+                    mechanisms3D[`joint_B_${side}`], mechanisms3D[`joint_C_${side}`]
+                );
+            });
+        }
+        
+        let angle = 0;
+        let animationSpeed = 0.03;
+
+        speedSlider.addEventListener('input', (e) => {
+            animationSpeed = parseFloat(e.target.value) / 100;
+        });
+
+        function update() {
+            requestAnimationFrame(update);
+            angle += animationSpeed;
+
+            const O2_L = pivots.O2_L, O4_L = pivots.O4_L;
+            const angle_L = angle;
+            const B_L = { x: O2_L.x + params.a * Math.cos(angle_L), y: O2_L.y + params.a * Math.sin(angle_L) };
+            const C_L = choosePoint(...circleIntersections(B_L.x, B_L.y, params.b, O4_L.x, O4_L.y, params.c), 'open');
+            
+            const O2_R = pivots.O2_R, O4_R = pivots.O4_R;
+            const angle_R = Math.PI - angle_L;
+            const B_R = { x: O2_R.x + params.a * Math.cos(angle_R), y: O2_R.y + params.a * Math.sin(angle_R) };
+            const C_R = choosePoint(...circleIntersections(B_R.x, B_R.y, params.b, O4_R.x, O4_R.y, params.c), 'open');
+
+            if (C_L && C_R) {
+                updateMechanism3DElements('L', O2_L, O4_L, B_L, C_L);
+                updateMechanism3DElements('R', O2_R, O4_R, B_R, C_R);
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function positionLink(linkMesh, p1, p2) {
+            const startVec = new THREE.Vector3(p1.x, p1.y, p1.z);
+            const endVec = new THREE.Vector3(p2.x, p2.y, p2.z);
+            const length = startVec.distanceTo(endVec);
+
+            if (length < 1e-6) { return; }
+
+            linkMesh.scale.y = length;
+            linkMesh.position.copy(startVec);
+
+            const direction = new THREE.Vector3().subVectors(endVec, startVec).normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+            const quaternion = new THREE.Quaternion();
+
+            quaternion.setFromUnitVectors(up, direction);
+            linkMesh.quaternion.copy(quaternion);
+        }
+        
+        function updateMechanism3DElements(side, O2, O4, B, C) {
+            const z_plane = 0;
+            
+            const p_O2 = {x: O2.x, y: O2.y, z: z_plane};
+            const p_O4 = {x: O4.x, y: O4.y, z: z_plane};
+            const p_B = {x: B.x, y: B.y, z: z_plane};
+            const p_C = {x: C.x, y: C.y, z: z_plane};
+
+            mechanisms3D[`joint_O2_${side}`].position.set(p_O2.x, p_O2.y, p_O2.z);
+            mechanisms3D[`joint_O4_${side}`].position.set(p_O4.x, p_O4.y, p_O4.z);
+            mechanisms3D[`joint_B_${side}`].position.set(p_B.x, p_B.y, p_B.z);
+            mechanisms3D[`joint_C_${side}`].position.set(p_C.x, p_C.y, p_C.z);
+            
+            positionLink(mechanisms3D[`crank_${side}`], p_O2, p_B);
+            positionLink(mechanisms3D[`coupler_${side}`], p_B, p_C);
+            positionLink(mechanisms3D[`rocker_${side}`], p_O4, p_C);
+            positionLink(mechanisms3D[`frame_${side}`], p_O4, p_O2);
+
+            const wingObject = mechanisms3D[`wing_object_${side}`];
+            wingObject.position.set(p_O4.x, p_O4.y, p_O4.z);
+            wingObject.quaternion.copy(mechanisms3D[`rocker_${side}`].quaternion);
+        }
+
+        init3D();
+        createMechanismModels();
+        update();
+    })();
+    </script>
+</body>
+</html>
+
+
