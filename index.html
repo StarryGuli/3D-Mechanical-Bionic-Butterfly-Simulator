@@ -74,6 +74,15 @@
         .secondary-btn{appearance:none;border:0;border-radius:12px;padding:8px 14px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:14px; transition: background-color 0.2s;}
         .secondary-btn:hover{background:#4b5563;}
 
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -163,9 +172,10 @@
                         <div class="mt-2">
                              <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-2" data-i18n="control_title">控制</h2>
                              <div class="grid grid-cols-1 gap-y-2">
-                                <div class="grid grid-cols-[auto,1fr] items-center gap-x-3">
+                                <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
                                     <label for="speed-slider" class="text-sm text-gray-400 w-20" data-i18n="control_speed">动画速度</label>
                                     <input id="speed-slider" type="range" min="1" max="10" value="3">
+                                    <button id="reverse-btn" class="secondary-btn px-3 py-1 text-sm"></button>
                                 </div>
                                 <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
                                     <label for="frameAngle" class="text-sm text-gray-400 w-20" data-i18n="control_angle">机架夹角 (°)</label>
@@ -304,10 +314,10 @@
         function createMechanismModels() { ['L', 'R'].forEach(side => { const linkGeom = new THREE.CylinderGeometry(linkRadius, linkRadius, 1, 16); linkGeom.translate(0, 0.5, 0); mechanisms3D[`frame_${side}`] = new THREE.Mesh(linkGeom, materials.frame); mechanisms3D[`coupler_${side}`] = new THREE.Mesh(linkGeom, materials.coupler); mechanisms3D[`crank_${side}`] = new THREE.Mesh(linkGeom, materials.crank); mechanisms3D[`rocker_${side}`] = new THREE.Mesh(linkGeom.clone(), materials.rocker); const jointGeom = new THREE.SphereGeometry(jointRadius, 16, 16); const pivotGeom = new THREE.SphereGeometry(pivotRadius, 16, 16); mechanisms3D[`joint_O2_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot); mechanisms3D[`joint_O4_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot); mechanisms3D[`joint_B_${side}`] = new THREE.Mesh(jointGeom, materials.joint); mechanisms3D[`joint_C_${side}`] = new THREE.Mesh(jointGeom, materials.joint); const wingObject = new THREE.Object3D(); mechanisms3D[`wing_object_${side}`] = wingObject; scene.add(wingObject); scene.add(mechanisms3D[`frame_${side}`], mechanisms3D[`coupler_${side}`], mechanisms3D[`crank_${side}`], mechanisms3D[`rocker_${side}`], mechanisms3D[`joint_O2_${side}`], mechanisms3D[`joint_O4_${side}`], mechanisms3D[`joint_B_${side}`], mechanisms3D[`joint_C_${side}`]); }); updateWingShape(); }
         function updateWingShape() { ['L', 'R'].forEach(side => { const wingObject = mechanisms3D[`wing_object_${side}`]; if(wingObject.children.length > 0) { wingObject.remove(wingObject.children[0]); } const wingShape = new THREE.Shape(); const c = params.c; const dir = (side === 'L') ? 1 : -1; wingShape.moveTo(0, 0); wingShape.bezierCurveTo(c*2.5*dir, c*2.2, c*3.5*dir, c*1.2, c*1.2*dir, -c*0.1); wingShape.bezierCurveTo(c*1.2*dir, -c*1.0, c*0.3*dir, -c*0.8, 0, 0); const wingGeom = new THREE.ShapeGeometry(wingShape); const wingMesh = new THREE.Mesh(wingGeom, materials.wing); wingMesh.rotation.x = -Math.PI / 2; wingMesh.rotation.y = (side === 'R' ? Math.PI / 2 : -Math.PI / 2); wingObject.add(wingMesh); }); }
         
-        let angle = 0, animationSpeed = 0.03;
+        let angle = 0, animationSpeed = 0.03, animationDirection = 1;
         function update() {
             requestAnimationFrame(update);
-            angle = (angle + animationSpeed) % (2 * Math.PI);
+            angle += animationSpeed * animationDirection;
             const bodyWidth = 10;
             const verticalOffset = 60; // 抬高蝴蝶以避免被UI遮挡
             const frameAngleRad = params.frameAngle * Math.PI / 180;
@@ -429,6 +439,12 @@
         ['a','b','c','d', 'frameAngle'].forEach(syncNumberAndRange);
         document.getElementById('speed-slider').addEventListener('input', e => { animationSpeed = parseFloat(e.target.value) / 100; });
         
+        const reverseBtn = document.getElementById('reverse-btn');
+        reverseBtn.addEventListener('click', () => {
+            animationDirection *= -1;
+            reverseBtn.textContent = animationDirection === 1 ? t('control_reverse_fwd') : t('control_reverse_rev');
+        });
+
         ['res_swing', 'res_k'].forEach(id => {
             const el = document.getElementById(id);
             el.addEventListener('input', recalculate);
@@ -459,6 +475,8 @@
             control_title: "控制",
             control_speed: "动画速度",
             control_angle: "机架夹角 (°)",
+            control_reverse_fwd: "正转",
+            control_reverse_rev: "反转",
             gh_open_btn: "查看 GitHub 仓库",
             warn_not_cr: "警告: 当前不是标准的曲柄摇杆机构",
             yes: "是",
@@ -489,6 +507,8 @@
             control_title: "Controls",
             control_speed: "Animation Speed",
             control_angle: "Frame Angle (°)",
+            control_reverse_fwd: "Forward",
+            control_reverse_rev: "Reverse",
             gh_open_btn: "View on GitHub",
             warn_not_cr: "Warning: Not a standard Crank-Rocker mechanism",
             yes: "Yes",
@@ -521,6 +541,7 @@
             localStorage.setItem('butterfly_lang', STATE.lang);
             applyI18n();
             recalculate(); 
+            document.getElementById('reverse-btn').textContent = animationDirection === 1 ? t('control_reverse_fwd') : t('control_reverse_rev');
             const zhBtn = document.getElementById('btnZH'), enBtn = document.getElementById('btnEN');
             if(zhBtn && enBtn){
                 if(STATE.lang === 'en'){
@@ -546,7 +567,7 @@
         }
 
         function initGitHub() {
-            const REPO = 'StarryGuli/crank-rocker-calculator'; // Using the reference repo
+            const REPO = 'StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator'; // Corrected repo
             const url = `https://api.github.com/repos/${REPO}`;
             const fallbackUrl = `https://github.com/${REPO}`;
             const btn = document.getElementById('openGitHubBtn');
@@ -577,3 +598,4 @@
     </script>
 </body>
 </html>
+
