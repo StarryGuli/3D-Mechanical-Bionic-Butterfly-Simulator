@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D机械仿生蝴蝶 - 基于曲柄摇杆的计算器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #111827;
+            color: #e5e7eb;
+            overflow: hidden; /* 防止滚动条出现 */
+        }
+        #mechanism-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 8px;
+            background: #374151; border-radius: 9999px; outline: none; opacity: 0.8;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+            background: #60a5fa; border-radius: 50%; cursor: pointer;
+            border: 2px solid #1f2937;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px; height: 18px; background: #60a5fa; border-radius: 50%;
+            cursor: pointer; border: 2px solid #1f2937;
+        }
+        input.param-input {
+            background-color: #1f2937; border: 1px solid #4b5563;
+            border-radius: 6px; padding: 4px 8px; width: 70px; text-align: center;
+        }
+        input.param-input.auto-fill {
+            color: #9ca3af; border-style: dashed;
+        }
+        .result-input {
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            text-align: center;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 1.125rem; /* text-lg */
+            line-height: 1.75rem;
+            width: 100%;
+            padding: 0;
+            color: #e5e7eb;
+        }
+        .result-input:focus, .result-input.is-target {
+            outline: none;
+            background-color: #1f2937;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+        }
+        .ok { color: #2ecc71; }
+        .warn { color: #ff6b6b; }
+        
+        /* Topbar styles from reference */
+        .topbar{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;position:absolute;top:0;left:0;width:100%;z-index:20;}
+        .brand-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .brand-title{font-weight:800;font-size:1.25rem}
+        .gh-quick{display:flex;gap:6px;align-items:center}
+        .gh-badge{background:#1f2937;border:1px solid #374151;border-radius:9999px;padding:4px 10px;color:#9ca3af;display:inline-flex;gap:6px;align-items:center;font-size:0.875rem;}
+        .gh-badge b{color:#e5e7eb}
+        .right-controls{display:flex;gap:8px;align-items:center}
+        .lang-switch{display:inline-flex;border:1px solid #374151;border-radius:9999px;background:#1f2937;overflow:hidden}
+        .lang-switch button{background:transparent;color:#9ca3af;padding:6px 12px;border:0;cursor:pointer;font-weight:700}
+        .lang-switch button.active{background:#3b82f6;color:#fff}
+        .secondary-btn{appearance:none;border:0;border-radius:12px;padding:8px 14px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:14px; transition: background-color 0.2s;}
+        .secondary-btn:hover{background:#4b5563;}
+
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    
+    <div class="topbar">
+      <div class="brand-left">
+        <div class="brand-title text-white" data-i18n="title">3D 机械仿生蝴蝶仿真器</div>
+        <div class="gh-quick" title="GitHub">
+          <span class="gh-badge" title="Stars"><span>★</span><b id="ghStars">—</b></span>
+          <span class="gh-badge" title="Forks"><span>⑂</span><b id="ghForks">—</b></span>
+          <span class="gh-badge" title="Open issues"><span>#</span><b id="ghIssues">—</b></span>
+        </div>
+      </div>
+      <div class="right-controls">
+        <button id="openGitHubBtn" class="secondary-btn" data-i18n="gh_open_btn">查看 GitHub 仓库</button>
+        <div class="lang-switch" id="langSwitch" role="tablist" aria-label="Language switch">
+          <button id="btnZH" role="tab" aria-selected="true" class="active">中文</button>
+          <button id="btnEN" role="tab" aria-selected="false">EN</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="absolute top-0 left-0 w-full p-4 text-center z-10 pointer-events-none mt-16">
+        <p class="text-lg text-gray-400" data-i18n="subtitle">
+            基于曲柄摇杆（Crank-Rocker）四杆机构的参数化计算
+        </p>
+        <p class="text-sm text-gray-500" data-i18n="hint">提示：清空一项杆长并编辑目标值可反推计算。鼠标可拖动旋转、滚轮缩放、右键平移视角。</p>
+    </div>
+
+    <div class="absolute inset-0 z-0">
+        <canvas id="mechanism-canvas"></canvas>
+    </div>
+
+    <!-- 控制与参数面板 -->
+    <div class="absolute bottom-0 left-0 w-full p-4 z-10">
+        <div class="max-w-6xl mx-auto p-3 bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700 shadow-lg">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                <!-- 左侧：参数输入 -->
+                <div class="flex flex-col">
+                    <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-2"><span data-i18n="params_title">机构参数调整</span> <small class="font-normal text-gray-500" data-i18n="params_hint">(清空一项以反推)</small></h2>
+                    <div class="grid grid-cols-1 gap-y-2">
+                        <!-- 参数 a, b, c, d -->
+                        <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
+                            <label for="a" class="text-sm text-gray-400 w-20" data-i18n="param_a">曲柄 a (mm)</label>
+                            <input id="ra" type="range" min="10" max="200" value="30" step="1">
+                            <input id="a" type="number" value="30" step="1" class="param-input">
+                        </div>
+                        <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
+                            <label for="b" class="text-sm text-gray-400 w-20" data-i18n="param_b">连杆 b (mm)</label>
+                            <input id="rb" type="range" min="10" max="200" value="85" step="1">
+                            <input id="b" type="number" value="85" step="1" class="param-input">
+                        </div>
+                        <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
+                           <label for="c" class="text-sm text-gray-400 w-20" data-i18n="param_c">摇杆 c (mm)</label>
+                           <input id="rc" type="range" min="10" max="200" value="75" step="1">
+                           <input id="c" type="number" value="75" step="1" class="param-input">
+                        </div>
+                        <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
+                            <label for="d" class="text-sm text-gray-400 w-20" data-i18n="param_d">机架 d (mm)</label>
+                            <input id="rd" type="range" min="10" max="200" value="90" step="1">
+                            <input id="d" type="number" value="90" step="1" class="param-input">
+                        </div>
+                    </div>
+                    <div id="solveHint" class="text-xs text-center text-blue-400 mt-1 h-4"></div>
+                </div>
+
+                <!-- 右侧：计算结果与控制 -->
+                <div class="flex flex-col">
+                    <div class="flex-grow flex flex-col">
+                        <div>
+                            <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-2" data-i18n="results_title">计算结果</h2>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+                                 <div class="bg-gray-900/50 p-2 rounded-lg"><span class="block text-xs text-gray-400" data-i18n="res_classify">机构判别</span><span class="block font-semibold text-lg" id="res_classify">—</span></div>
+                                 <div class="bg-gray-900/50 p-2 rounded-lg flex flex-col items-center justify-center">
+                                    <label for="res_swing" class="block text-xs text-gray-400" data-i18n="res_swing">摇杆摆角 (°)</label>
+                                    <input type="number" id="res_swing" step="0.1" class="result-input">
+                                 </div>
+                                 <div class="bg-gray-900/50 p-2 rounded-lg flex flex-col items-center justify-center">
+                                    <label for="res_k" class="block text-xs text-gray-400" data-i18n="res_k">系数 K</label>
+                                    <input type="number" id="res_k" step="0.01" class="result-input">
+                                 </div>
+                                 <div class="bg-gray-900/50 p-2 rounded-lg"><span class="block text-xs text-gray-400" data-i18n="res_full_rot">整周转动</span><span class="block font-semibold text-lg" id="res_full_rot">—</span></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                             <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-2" data-i18n="control_title">控制</h2>
+                             <div class="grid grid-cols-1 gap-y-2">
+                                <div class="grid grid-cols-[auto,1fr] items-center gap-x-3">
+                                    <label for="speed-slider" class="text-sm text-gray-400 w-20" data-i18n="control_speed">动画速度</label>
+                                    <input id="speed-slider" type="range" min="1" max="10" value="3">
+                                </div>
+                                <div class="grid grid-cols-[auto,1fr,auto] items-center gap-x-3">
+                                    <label for="frameAngle" class="text-sm text-gray-400 w-20" data-i18n="control_angle">机架夹角 (°)</label>
+                                    <input id="rframeAngle" type="range" min="0" max="60" value="0" step="1">
+                                    <input id="frameAngle" type="number" value="0" step="1" class="param-input">
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="warning-message" class="text-center text-amber-400 font-bold mt-2 h-5"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+    (function() {
+        // --- 核心运动学函数 (来自原版计算器) ---
+        function circleIntersections(x0, y0, r0, x1, y1, r1) { const dx = x1 - x0, dy = y1 - y0; const d = Math.hypot(dx, dy); if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return []; const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d); const h2 = r0 * r0 - a * a; const h = Math.sqrt(Math.max(0, h2)); const xm = x0 + a * dx / d; const ym = y0 + a * dy / d; const rx = -dy * (h / d); const ry = dx * (h / d); return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }]; }
+        
+        function choosePoint(p1, p2, mode) { if (!p1) return null; if (!p2) return p1; return (mode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2); }
+        
+        function choosePointVertical(side, p1, p2, mode) {
+            if (!p1) return null;
+            if (!p2) return p1;
+            if (side === 'L') {
+                return p1.x <= p2.x ? p1 : p2;
+            } else { // side === 'R'
+                return p1.x >= p2.x ? p1 : p2;
+            }
+        }
+        
+        function classifyGrashof(a,b,c,d){ const arr=[a,b,c,d].slice().sort((x,y) => x-y); const S=arr[0], L=arr[3], P=arr[1], Q=arr[2]; const isGrashof = S + L <= P + Q; if (!isGrashof) return { type: 'Non-Grashof', key: 'non_grashof' }; if (S === a && isGrashof) return { type: 'Crank-Rocker', key: 'crank_rocker' }; return { type: 'Grashof', key: 'grashof' }; }
+        function feasibleThetaRange(a,b,c,d){ const rMax=b+c, rMin=Math.abs(b-c); const cosHi=(a*a + d*d - rMin*rMin)/(2*a*d); const cosLo=(a*a + d*d - rMax*rMax)/(2*a*d); const clamp = (x) => Math.max(-1,Math.min(1,x)); const lo=Math.acos(clamp(cosHi)); const hi=Math.acos(clamp(cosLo)); if(isNaN(lo)||isNaN(hi) || lo > hi) return []; return [ [lo, hi], [2*Math.PI - hi, 2*Math.PI - lo] ]; }
+        function solvePose(a,b,c,d,theta,asm){ const O2 = { x: 0, y: 0 }, O4 = { x: d, y: 0 }; const B = { x: a*Math.cos(theta), y: a*Math.sin(theta) }; const inter = circleIntersections(B.x,B.y,b, O4.x,O4.y,c); if(inter.length === 0) return null; const C = choosePoint(inter[0], inter[1], asm); const phi = Math.atan2(C.y - O4.y, C.x-O4.x); return { O2, O4, B, C, phi }; }
+        function computeAll(a,b,c,d,asm){
+            const intervals = feasibleThetaRange(a,b,c,d);
+            if (intervals.length === 0) return { ok: false, msg: t('err_no_assembly') };
+            
+            const phis = [], thetas = [];
+            const sampleN = 360;
+            for (const [theta0, theta1] of intervals) {
+                for(let i = 0; i <= sampleN; i++) {
+                    const theta = theta0 + (theta1 - theta0) * i / sampleN;
+                    const pose = solvePose(a,b,c,d,theta,asm);
+                    if (pose) {
+                        phis.push(pose.phi);
+                        thetas.push(theta);
+                    }
+                }
+            }
+
+            if (phis.length === 0) return { ok: false, msg: t('err_no_pose') };
+            const phiMin = Math.min(...phis);
+            const phiMax = Math.max(...phis);
+            const swing = (phiMax - phiMin) * 180 / Math.PI;
+
+            let inc = 0, dec = 0;
+            for(let i=1; i<phis.length; i++){
+                const dphi = phis[i]-phis[i-1];
+                const dth = thetas[i]-thetas[i-1];
+                if(dphi > 0) inc += dth;
+                else if(dphi < 0) dec += dth;
+            }
+            const K = (inc > 1e-6 && dec > 1e-6) ? Math.max(inc,dec) / Math.min(inc,dec) : 1;
+            
+            const coverage = intervals.reduce((sum, range) => sum + (range[1] - range[0]), 0) / (2 * Math.PI);
+            const crankAFull = coverage > 0.999;
+            return { ok: true, swing, K, coverageA: coverage, crankAFull, classify: classifyGrashof(a,b,c,d) };
+        }
+        
+        // --- 约束求解函数 ---
+        function isStrongDefined(id){ const num=document.getElementById(id); if(!num || num.value==='' || num.value==='0' || num.dataset.auto==='1') return false; return isFinite(parseFloat(num.value)); }
+        function markAuto(id, x){ const num=document.getElementById(id), rng=document.getElementById('r'+id); if(num){ num.value = (x!=null? Number(x).toFixed(2):''); num.dataset.auto='1'; num.classList.add('auto-fill'); } if(rng && x!=null){ rng.value = Number(x); } }
+        function clearAuto(id){ const num=document.getElementById(id); if(!num) return; delete num.dataset.auto; num.classList.remove('auto-fill'); }
+        function getValueForCompute(id){ if(isStrongDefined(id)) return parseFloat(document.getElementById(id).value); const r=document.getElementById('r'+id); return r? parseFloat(r.value) : null; }
+        function countWeakUnknown(){ let cnt=0, id=null; for(const p of ['a','b','c','d']){ if(!isStrongDefined(p)){ cnt++; id=p; } } return { cnt: cnt, id: id }; }
+        function solveUnknownByTarget(unknownId, which, target){
+          const rEl = document.getElementById('r'+unknownId);
+          if(!rEl) return null;
+          let lo = parseFloat(rEl.min) || 1, hi = parseFloat(rEl.max) || 200;
+          let a=getValueForCompute('a'), b=getValueForCompute('b'), c=getValueForCompute('c'), d=getValueForCompute('d'); 
+          const asm = 'open'; // Hardcoded as 'open'
+          const setX = (x) => { if(unknownId==='a') a=x; else if(unknownId==='b') b=x; else if(unknownId==='c') c=x; else d=x; };
+          
+          const costFor = (x) => {
+              setX(x);
+              const res = computeAll(a,b,c,d,asm);
+              if(!res.ok || !res.crankAFull || res.classify.type !== 'Crank-Rocker') return 1e9;
+              const v = (which==='swing'? res.swing : res.K);
+              return isFinite(v) ? Math.abs(v-target) : 1e9;
+          };
+
+          let bestX = null, minCost = Infinity;
+          const N=100; // Coarse search
+          for(let i=0; i<=N; i++){
+              const x = lo + (hi-lo)*i/N;
+              const cost = costFor(x);
+              if(cost < minCost){ minCost = cost; bestX = x; }
+          }
+          if(bestX === null) return null;
+
+          // Fine search (golden-section)
+          const phi = (Math.sqrt(5)-1)/2;
+          let L = Math.max(lo, bestX - (hi-lo)*0.1), R = Math.min(hi, bestX + (hi-lo)*0.1);
+          let x1=R-phi*(R-L), x2=L+phi*(R-L); let f1=costFor(x1), f2=costFor(x2);
+          for(let k=0; k<50; k++){
+            if(f1 > f2){ L=x1; x1=x2; f1=f2; x2=L+phi*(R-L); f2=costFor(x2); }
+            else{ R=x2; x2=x1; f2=f1; x1=R-phi*(R-L); f1=costFor(x1); }
+            if(Math.abs(R-L) < 1e-4) break;
+          }
+          const xbest = (f1 < f2) ? x1:x2;
+          setX(xbest);
+          const final = computeAll(a,b,c,d,asm);
+          const finalVal = (which==='swing'? final.swing : final.K);
+          if(!final.ok || !isFinite(finalVal)) return null;
+          return { x: xbest, val: finalVal, err: Math.abs(finalVal - target) };
+        }
+
+        // --- Three.js 初始化 ---
+        let scene, camera, renderer, controls;
+        const canvas = document.getElementById('mechanism-canvas');
+        function init3D() { scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000); camera.position.set(0, 150, -350); renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setClearColor(0x000000, 0); controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight); const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9); directionalLight.position.set(50, 100, 100); scene.add(directionalLight); window.addEventListener('resize', onWindowResize); }
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        
+        // --- DOM 元素与参数 ---
+        const params = { a: 30, b: 85, c: 75, d: 90, asm: 'open', frameAngle: 0 };
+        const linkRadius = 2.5, jointRadius = 4, pivotRadius = 4.5;
+        
+        // --- 3D 模型创建与更新 ---
+        const mechanisms3D = {};
+        const materials = { crank: new THREE.MeshStandardMaterial({ color: '#fca5a5', metalness: 0.6, roughness: 0.4 }), coupler: new THREE.MeshStandardMaterial({ color: '#34d399', metalness: 0.6, roughness: 0.4 }), rocker: new THREE.MeshStandardMaterial({ color: '#a78bfa', metalness: 0.6, roughness: 0.4 }), frame: new THREE.MeshStandardMaterial({ color: '#6b7280', metalness: 0.6, roughness: 0.4 }), joint: new THREE.MeshStandardMaterial({ color: '#f87171', metalness: 0.4, roughness: 0.5 }), pivot: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.4, roughness: 0.5 }), wing: new THREE.MeshStandardMaterial({ color: '#a855f7', metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.8, side: THREE.DoubleSide }), };
+        function createMechanismModels() { ['L', 'R'].forEach(side => { const linkGeom = new THREE.CylinderGeometry(linkRadius, linkRadius, 1, 16); linkGeom.translate(0, 0.5, 0); mechanisms3D[`frame_${side}`] = new THREE.Mesh(linkGeom, materials.frame); mechanisms3D[`coupler_${side}`] = new THREE.Mesh(linkGeom, materials.coupler); mechanisms3D[`crank_${side}`] = new THREE.Mesh(linkGeom, materials.crank); mechanisms3D[`rocker_${side}`] = new THREE.Mesh(linkGeom.clone(), materials.rocker); const jointGeom = new THREE.SphereGeometry(jointRadius, 16, 16); const pivotGeom = new THREE.SphereGeometry(pivotRadius, 16, 16); mechanisms3D[`joint_O2_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot); mechanisms3D[`joint_O4_${side}`] = new THREE.Mesh(pivotGeom, materials.pivot); mechanisms3D[`joint_B_${side}`] = new THREE.Mesh(jointGeom, materials.joint); mechanisms3D[`joint_C_${side}`] = new THREE.Mesh(jointGeom, materials.joint); const wingObject = new THREE.Object3D(); mechanisms3D[`wing_object_${side}`] = wingObject; scene.add(wingObject); scene.add(mechanisms3D[`frame_${side}`], mechanisms3D[`coupler_${side}`], mechanisms3D[`crank_${side}`], mechanisms3D[`rocker_${side}`], mechanisms3D[`joint_O2_${side}`], mechanisms3D[`joint_O4_${side}`], mechanisms3D[`joint_B_${side}`], mechanisms3D[`joint_C_${side}`]); }); updateWingShape(); }
+        function updateWingShape() { ['L', 'R'].forEach(side => { const wingObject = mechanisms3D[`wing_object_${side}`]; if(wingObject.children.length > 0) { wingObject.remove(wingObject.children[0]); } const wingShape = new THREE.Shape(); const c = params.c; const dir = (side === 'L') ? 1 : -1; wingShape.moveTo(0, 0); wingShape.bezierCurveTo(c*2.5*dir, c*2.2, c*3.5*dir, c*1.2, c*1.2*dir, -c*0.1); wingShape.bezierCurveTo(c*1.2*dir, -c*1.0, c*0.3*dir, -c*0.8, 0, 0); const wingGeom = new THREE.ShapeGeometry(wingShape); const wingMesh = new THREE.Mesh(wingGeom, materials.wing); wingMesh.rotation.x = -Math.PI / 2; wingMesh.rotation.y = (side === 'R' ? Math.PI / 2 : -Math.PI / 2); wingObject.add(wingMesh); }); }
+        
+        let angle = 0, animationSpeed = 0.03;
+        function update() {
+            requestAnimationFrame(update);
+            angle = (angle + animationSpeed) % (2 * Math.PI);
+            const bodyWidth = 10;
+            const verticalOffset = 60; // 抬高蝴蝶以避免被UI遮挡
+            const frameAngleRad = params.frameAngle * Math.PI / 180;
+
+            const O4_L = { x: -bodyWidth/2, y: verticalOffset };
+            const O2_L = { x: O4_L.x - params.d * Math.sin(frameAngleRad), y: O4_L.y - params.d * Math.cos(frameAngleRad) };
+            const B_L = { x: O2_L.x + params.a * Math.cos(angle), y: O2_L.y + params.a * Math.sin(angle) };
+            const C_L_intersections = circleIntersections(B_L.x, B_L.y, params.b, O4_L.x, O4_L.y, params.c);
+            const C_L = choosePointVertical('L', C_L_intersections[0], C_L_intersections[1], params.asm);
+
+            const O4_R = { x: bodyWidth/2, y: verticalOffset };
+            const O2_R = { x: O4_R.x + params.d * Math.sin(frameAngleRad), y: O4_R.y - params.d * Math.cos(frameAngleRad) };
+            const angle_R = Math.PI - angle;
+            const B_R = { x: O2_R.x + params.a * Math.cos(angle_R), y: O2_R.y + params.a * Math.sin(angle_R) };
+            const C_R_intersections = circleIntersections(B_R.x, B_R.y, params.b, O4_R.x, O4_R.y, params.c);
+            const C_R = choosePointVertical('R', C_R_intersections[0], C_R_intersections[1], params.asm);
+
+            if (C_L) updateMechanism3DElements('L', O4_L, O2_L, C_L, B_L);
+            if (C_R) updateMechanism3DElements('R', O4_R, O2_R, C_R, B_R);
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        function positionLink(linkMesh, p1, p2) { const startVec=new THREE.Vector3(p1.x,p1.y,0), endVec=new THREE.Vector3(p2.x,p2.y,0); const length = startVec.distanceTo(endVec); if(length<1e-6) return; linkMesh.scale.y = length; linkMesh.position.copy(startVec); const direction = new THREE.Vector3().subVectors(endVec, startVec).normalize(); linkMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), direction); }
+        function updateMechanism3DElements(side, O4, O2, C, B) { mechanisms3D[`joint_O2_${side}`].position.set(O2.x, O2.y, 0); mechanisms3D[`joint_O4_${side}`].position.set(O4.x, O4.y, 0); mechanisms3D[`joint_B_${side}`].position.set(B.x, B.y, 0); mechanisms3D[`joint_C_${side}`].position.set(C.x, C.y, 0); positionLink(mechanisms3D[`crank_${side}`], O2, B); positionLink(mechanisms3D[`coupler_${side}`], B, C); positionLink(mechanisms3D[`rocker_${side}`], O4, C); positionLink(mechanisms3D[`frame_${side}`], O4, O2); const wingObject = mechanisms3D[`wing_object_${side}`]; wingObject.position.set(O4.x, O4.y, 0); wingObject.quaternion.copy(mechanisms3D[`rocker_${side}`].quaternion); }
+
+        /** 主计算与UI更新函数 */
+        function recalculate() {
+            document.getElementById('solveHint').innerHTML = '';
+            const uk = countWeakUnknown();
+            const activeInput = document.activeElement;
+            const activeTargetId = activeInput ? activeInput.id : null;
+
+            // --- Step 1: Perform Inverse Solve if applicable ---
+            if (uk.cnt === 1 && (activeTargetId === 'res_swing' || activeTargetId === 'res_k')) {
+                const which = activeTargetId.replace('res_', '');
+                const targetVal = parseFloat(activeInput.value);
+                if (isFinite(targetVal)) {
+                    const solved = solveUnknownByTarget(uk.id, which, targetVal);
+                    if (solved) {
+                        markAuto(uk.id, solved.x);
+                        document.getElementById('solveHint').innerHTML = `<span class="ok">${t('solve_hint_ok').replace('{id}', uk.id).replace('{val}', solved.x.toFixed(2))}</span>`;
+                    } else {
+                         document.getElementById('solveHint').innerHTML = `<span class="warn">${t('solve_hint_fail').replace('{id}', uk.id)}</span>`;
+                    }
+                }
+            }
+
+            // --- Step 2: Always Perform Forward Calculation ---
+            params.a = getValueForCompute('a');
+            params.b = getValueForCompute('b');
+            params.c = getValueForCompute('c');
+            params.d = getValueForCompute('d');
+            params.asm = 'open'; // Hardcoded as 'open'
+            params.frameAngle = getValueForCompute('frameAngle');
+
+            const result = computeAll(params.a, params.b, params.c, params.d, params.asm);
+
+            // --- Step 3: Update all UI elements ---
+            const displays = { 
+                classify: document.getElementById('res_classify'), 
+                swing: document.getElementById('res_swing'), 
+                k: document.getElementById('res_k'), 
+                full_rot: document.getElementById('res_full_rot'), 
+                warning: document.getElementById('warning-message') 
+            };
+            
+            displays.warning.textContent = '';
+            
+            if (!result.ok) {
+                displays.classify.textContent = '—';
+                displays.full_rot.textContent = '—';
+                if(activeTargetId !== 'res_swing') displays.swing.value = '';
+                if(activeTargetId !== 'res_k') displays.k.value = '';
+                displays.warning.textContent = result.msg;
+            } else {
+                const isCrankRocker = result.classify.type === 'Crank-Rocker';
+                displays.classify.textContent = t(result.classify.key);
+                displays.classify.className = `block font-semibold text-lg ${isCrankRocker ? 'ok' : 'warn'}`;
+                
+                if (activeTargetId !== 'res_swing') {
+                    displays.swing.value = result.swing.toFixed(1);
+                }
+                if (activeTargetId !== 'res_k') {
+                   displays.k.value = result.K.toFixed(2);
+                }
+
+                displays.full_rot.textContent = result.crankAFull ? t('yes') : t('no');
+                displays.full_rot.className = `block font-semibold text-lg ${result.crankAFull ? 'ok' : 'warn'}`;
+                if(!isCrankRocker) displays.warning.textContent = t('warn_not_cr');
+            }
+
+            ['res_swing', 'res_k'].forEach(id => {
+                const el = document.getElementById(id);
+
+                if (id === activeTargetId) {
+                    el.classList.add('is-target');
+                } else {
+                    el.classList.remove('is-target');
+                }
+            });
+
+            updateWingShape();
+        }
+        
+        // --- 事件监听 ---
+        function syncNumberAndRange(id){
+            const num = document.getElementById(id), rng = document.getElementById('r'+id);
+            if (!num || !rng) return;
+            rng.addEventListener('input', () => { num.value = rng.value; clearAuto(id); recalculate(); });
+            num.addEventListener('input', () => { 
+                const v = parseFloat(num.value);
+                if(isFinite(v) && v >= parseFloat(rng.min) && v <= parseFloat(rng.max)) rng.value = v;
+                clearAuto(id);
+                recalculate();
+            });
+            num.addEventListener('change', () => { if(num.value === '') recalculate(); });
+        }
+        ['a','b','c','d', 'frameAngle'].forEach(syncNumberAndRange);
+        document.getElementById('speed-slider').addEventListener('input', e => { animationSpeed = parseFloat(e.target.value) / 100; });
+        
+        ['res_swing', 'res_k'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', recalculate);
+            el.addEventListener('blur', () => {
+                el.classList.remove('is-target');
+                recalculate(); // Recalculate on blur to update all fields
+            });
+        });
+
+        // ===== i18n & GitHub Integration =====
+        const STATE = { lang: 'zh-CN' };
+        const I18N = {
+          'zh-CN': {
+            title: "3D 机械仿生蝴蝶仿真器",
+            subtitle: "基于曲柄摇杆（Crank-Rocker）四杆机构的参数化计算",
+            hint: "提示：清空一项杆长并编辑目标值可反推计算。鼠标可拖动旋转、滚轮缩放、右键平移视角。",
+            params_title: "机构参数调整",
+            params_hint: "(清空一项以反推)",
+            param_a: "曲柄 a (mm)",
+            param_b: "连杆 b (mm)",
+            param_c: "摇杆 c (mm)",
+            param_d: "机架 d (mm)",
+            results_title: "计算结果",
+            res_classify: "机构判别",
+            res_swing: "摇杆摆角 (°)",
+            res_k: "系数 K",
+            res_full_rot: "整周转动",
+            control_title: "控制",
+            control_speed: "动画速度",
+            control_angle: "机架夹角 (°)",
+            gh_open_btn: "查看 GitHub 仓库",
+            warn_not_cr: "警告: 当前不是标准的曲柄摇杆机构",
+            yes: "是",
+            no: "否",
+            solve_hint_ok: "已反推 {id} ≈ {val}",
+            solve_hint_fail: "无法为 {id} 找到满足约束的解",
+            err_no_assembly: '几何不可装配',
+            err_no_pose: '无法求解姿态',
+            crank_rocker: '曲柄摇杆',
+            non_grashof: '非Grashof',
+            grashof: 'Grashof机构'
+          },
+          'en': {
+            title: "3D Mechanical Bionic Butterfly Simulator",
+            subtitle: "Parametric calculation based on Crank-Rocker four-bar linkage",
+            hint: "Hint: Clear a link length and edit a target value for inverse calculation. Drag to rotate, scroll to zoom, right-click to pan.",
+            params_title: "Mechanism Parameters",
+            params_hint: "(Clear one for inverse calculation)",
+            param_a: "Crank a (mm)",
+            param_b: "Coupler b (mm)",
+            param_c: "Rocker c (mm)",
+            param_d: "Frame d (mm)",
+            results_title: "Calculation Results",
+            res_classify: "Mechanism Type",
+            res_swing: "Rocker Angle (°)",
+            res_k: "Coefficient K",
+            res_full_rot: "Full Rotation",
+            control_title: "Controls",
+            control_speed: "Animation Speed",
+            control_angle: "Frame Angle (°)",
+            gh_open_btn: "View on GitHub",
+            warn_not_cr: "Warning: Not a standard Crank-Rocker mechanism",
+            yes: "Yes",
+            no: "No",
+            solve_hint_ok: "Solved for {id} ≈ {val}",
+            solve_hint_fail: "Could not find a solution for {id}",
+            err_no_assembly: 'Geometrically not assemblable',
+            err_no_pose: 'Cannot solve pose',
+            crank_rocker: 'Crank-Rocker',
+            non_grashof: 'Non-Grashof',
+            grashof: 'Grashof Mechanism'
+          }
+        };
+
+        function t(key) {
+            const lang = STATE.lang || 'zh-CN';
+            return (I18N[lang] && I18N[lang][key]) || (I18N['en'] && I18N[lang][key]) || key;
+        }
+
+        function applyI18n() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (key) el.innerHTML = t(key);
+            });
+            document.documentElement.lang = STATE.lang === 'en' ? 'en' : 'zh-CN';
+        }
+
+        function setLang(lang) {
+            STATE.lang = (lang === 'en') ? 'en' : 'zh-CN';
+            localStorage.setItem('butterfly_lang', STATE.lang);
+            applyI18n();
+            recalculate(); 
+            const zhBtn = document.getElementById('btnZH'), enBtn = document.getElementById('btnEN');
+            if(zhBtn && enBtn){
+                if(STATE.lang === 'en'){
+                    enBtn.classList.add('active'); enBtn.setAttribute('aria-selected', 'true');
+                    zhBtn.classList.remove('active'); zhBtn.setAttribute('aria-selected', 'false');
+                } else {
+                    zhBtn.classList.add('active'); zhBtn.setAttribute('aria-selected', 'true');
+                    enBtn.classList.remove('active'); enBtn.setAttribute('aria-selected', 'false');
+                }
+            }
+        }
+
+        function initI18n() {
+            const savedLang = localStorage.getItem('butterfly_lang');
+            if (savedLang) {
+                STATE.lang = savedLang;
+            } else {
+                STATE.lang = (document.documentElement.lang || 'zh-CN').startsWith('en') ? 'en' : 'zh-CN';
+            }
+            document.getElementById('btnZH').addEventListener('click', () => setLang('zh-CN'));
+            document.getElementById('btnEN').addEventListener('click', () => setLang('en'));
+            setLang(STATE.lang);
+        }
+
+        function initGitHub() {
+            const REPO = 'StarryGuli/crank-rocker-calculator'; // Using the reference repo
+            const url = `https://api.github.com/repos/${REPO}`;
+            const fallbackUrl = `https://github.com/${REPO}`;
+            const btn = document.getElementById('openGitHubBtn');
+            if (btn) {
+                btn.addEventListener('click', () => window.open(fallbackUrl, '_blank'));
+            }
+            fetch(url)
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(data => {
+                    if (!data) return;
+                    if (data.stargazers_count != null) document.getElementById('ghStars').textContent = data.stargazers_count;
+                    if (data.forks_count != null) document.getElementById('ghForks').textContent = data.forks_count;
+                    if (data.open_issues_count != null) document.getElementById('ghIssues').textContent = data.open_issues_count;
+                    if (btn && data.html_url) {
+                        btn.onclick = () => window.open(data.html_url, '_blank');
+                    }
+                }).catch(console.error);
+        }
+
+        // --- 启动 ---
+        init3D();
+        createMechanismModels();
+        initI18n();
+        initGitHub();
+        recalculate(); // 初始计算
+        update();
+    })();
+    </script>
+</body>
+</html>
