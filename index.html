@@ -149,9 +149,11 @@
             </div>
         </div>
         <div class="pointer-events-auto flex items-center gap-3">
-            <button id="openGitHubBtn" class="nav-btn flex items-center gap-2">
+            <button id="openGitHubBtn" class="nav-btn flex items-center gap-2 pr-3">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 <span data-i18n="gh_open_btn">GitHub</span>
+                <div class="h-4 w-px bg-white/20 mx-1"></div>
+                <span id="ghStars" class="text-xs font-mono text-yellow-400">★ -</span>
             </button>
             <div class="glass-panel rounded-lg p-1 flex">
                 <button id="btnZH" class="px-3 py-1 text-xs font-semibold rounded text-white bg-white/10 transition">CN</button>
@@ -521,7 +523,11 @@
         function posLink(mesh, p1, p2) { const s=new THREE.Vector3(p1.x,p1.y,0), e=new THREE.Vector3(p2.x,p2.y,0), l=s.distanceTo(e); if(l<1e-6)return; mesh.scale.y = l; mesh.position.copy(s); const d=new THREE.Vector3().subVectors(e,s).normalize(); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d); }
         function updateMechEls(side, O4, O2, C, B) { mechanisms3D[`joint_O2_${side}`].position.set(O2.x, O2.y, 0); mechanisms3D[`joint_O4_${side}`].position.set(O4.x, O4.y, 0); mechanisms3D[`joint_B_${side}`].position.set(B.x, B.y, 0); mechanisms3D[`joint_C_${side}`].position.set(C.x, C.y, 0); posLink(mechanisms3D[`crank_${side}`], O2, B); posLink(mechanisms3D[`coupler_${side}`], B, C); posLink(mechanisms3D[`rocker_${side}`], O4, C); posLink(mechanisms3D[`frame_${side}`], O4, O2); const wo = mechanisms3D[`wing_object_${side}`]; wo.position.set(O4.x, O4.y, 0); wo.quaternion.copy(mechanisms3D[`rocker_${side}`].quaternion); }
 
+        let hasUnsavedChanges = false;
         function recalculate() {
+            if (!document.body.dataset.loaded) return; 
+            hasUnsavedChanges = true; // Mark dirty on recalc (unless loading)
+
             document.getElementById('solveHint').innerHTML = '';
             const uk = countWeakUnknown();
             const activeInput = document.activeElement;
@@ -702,10 +708,32 @@
         // --- File IO ---
         function showToast(m){const t=document.getElementById('toast');t.innerText=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
         document.getElementById('btnShare').onclick = () => { const p=new URLSearchParams(getConfigObj()); navigator.clipboard.writeText(location.origin+location.pathname+'#'+p.toString()).then(()=>showToast(t('msg_link_copied'))); };
-        document.getElementById('btnSave').onclick = () => { const b=new Blob([JSON.stringify(getConfigObj(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='config.json'; a.click(); showToast(t('msg_saved')); };
+        document.getElementById('btnSave').onclick = () => {
+            hasUnsavedChanges = false;
+            const b=new Blob([JSON.stringify(getConfigObj(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='config.json'; a.click(); showToast(t('msg_saved'));
+        };
         document.getElementById('btnLoad').onclick = () => document.getElementById('fileInput').click();
         document.getElementById('fileInput').onchange = (e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{try{applyConfigObj(JSON.parse(ev.target.result));showToast(t('msg_loaded'));}catch(x){alert('Invalid JSON');}}; r.readAsText(f); e.target.value=''; };
-        document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com', '_blank'); });
+        document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com/StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator', '_blank'); });
+
+        // --- Stars Fetch ---
+        function fetchGitHubStars() {
+            const REPO = 'StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator';
+            fetch(`https://api.github.com/repos/${REPO}`)
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('ghStars');
+                    if (data.stargazers_count != null) el.textContent = `★ ${data.stargazers_count}`;
+                }).catch(e => console.log('Stars fetch fail'));
+        }
+
+        // --- Unsaved Prompt ---
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         // --- I18N ---
         const STATE = { lang: 'zh-CN' };
@@ -748,7 +776,8 @@
         document.getElementById('btnZH').onclick = () => setLang('zh-CN'); document.getElementById('btnEN').onclick = () => setLang('en');
         
         // --- Init ---
-        init3D(); createMechanismModels(); loadPresets(); loadInitialState(); setLang('zh-CN'); update();
+        init3D(); createMechanismModels(); loadPresets(); loadInitialState(); setLang('zh-CN'); update(); fetchGitHubStars();
+        document.body.dataset.loaded = "true"; // Flag to enable dirty check
     })();
     </script>
 </body>
