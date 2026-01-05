@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Inter 字体提升质感 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 JSZip 用于打包下载 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --glass-bg: rgba(17, 24, 39, 0.75);
@@ -135,12 +137,6 @@
         /* Label Styling */
         .lbl-sm { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 600; }
         
-        /* Offline Warning */
-        #offline-overlay {
-            position: fixed; inset: 0; background: #111827; z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: #ef4444; text-align: center; padding: 20px;
-        }
     </style>
 </head>
 <body>
@@ -255,6 +251,16 @@
                             <input id="frameAngle" type="number" class="param-input">
                         </div>
                     </div>
+                    <!-- Height Offset (New) -->
+                    <div>
+                        <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
+                            <span data-i18n="control_height_diff">垂直高度</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input id="rheightOffset" type="range" min="0" max="150" step="1" class="flex-1">
+                            <input id="heightOffset" type="number" class="param-input">
+                        </div>
+                    </div>
                     <!-- Crank Distance -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
@@ -356,16 +362,16 @@
 
             <!-- IO Actions -->
             <div class="pt-6 border-t border-white/10 grid grid-cols-3 gap-3">
-                <button id="btnSave" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    <span data-i18n="btn_save">保存</span>
+                <button id="btnSave" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span data-i18n="btn_save">打包导出</span>
                 </button>
-                <button id="btnLoad" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <button id="btnLoad" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     <span data-i18n="btn_load">读取</span>
                 </button>
-                <button id="btnShare" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                <button id="btnShare" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                     <span data-i18n="btn_share">链接</span>
                 </button>
                 <input type="file" id="fileInput" accept=".json" style="display:none">
@@ -391,7 +397,7 @@
             return;
         }
 
-        // --- Core Math (Unchanged) ---
+        // --- Core Math (Standard Parallel Logic) ---
         function circleIntersections(x0, y0, r0, x1, y1, r1) { const dx = x1 - x0, dy = y1 - y0; const d = Math.hypot(dx, dy); if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return []; const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d); const h2 = r0 * r0 - a * a; const h = Math.sqrt(Math.max(0, h2)); const xm = x0 + a * dx / d; const ym = y0 + a * dy / d; const rx = -dy * (h / d); const ry = dx * (h / d); return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }]; }
         function choosePoint(p1, p2, asmMode) { if (!p1) return null; if (!p2) return p1; return (asmMode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2); }
         function calculateTransmissionQuality(a, b, c, d) { const f1 = Math.abs(d - a), f2 = d + a; const getGamma = (f) => { const val = (b*b + c*c - f*f) / (2*b*c); if (val < -1 || val > 1) return 0; return Math.acos(val) * 180 / Math.PI; }; const gamma1 = getGamma(f1), gamma2 = getGamma(f2); const distToDead1 = Math.min(gamma1, 180 - gamma1), distToDead2 = Math.min(gamma2, 180 - gamma2); return { minGamma: Math.min(distToDead1, distToDead2) }; }
@@ -572,14 +578,29 @@
             params.crankDistance = getValueForCompute('crankDistance');
             params.wingDistance = getValueForCompute('wingDistance');
 
-            if (activeTargetId !== 'frameAngle' && activeTargetId !== 'rframeAngle') {
+            // --- Auto-sync Angle & Height UI based on current geometry ---
+            if (activeTargetId !== 'frameAngle' && activeTargetId !== 'rframeAngle' && activeTargetId !== 'heightOffset' && activeTargetId !== 'rheightOffset') {
                 const d = params.d;
                 const halfDiff = Math.abs(params.crankDistance - params.wingDistance) / 2;
+                
+                // Sync Angle
                 const angleRad = Math.acos(Math.min(1, halfDiff / (d > 0 ? d : 1)));
                 const angleDeg = angleRad * 180 / Math.PI;
                 const angleNum = document.getElementById('frameAngle');
                 const angleSlider = document.getElementById('rframeAngle');
-                if (angleNum && angleSlider) { angleNum.value = angleDeg.toFixed(1); angleSlider.value = angleDeg; }
+                if (angleNum && angleSlider) { 
+                    angleNum.value = angleDeg.toFixed(1); 
+                    angleSlider.value = angleDeg; 
+                }
+
+                // Sync Height Offset
+                const height = Math.sqrt(Math.max(0, d*d - halfDiff*halfDiff));
+                const hNum = document.getElementById('heightOffset');
+                const hSlider = document.getElementById('rheightOffset');
+                if (hNum && hSlider) {
+                    hNum.value = height.toFixed(1);
+                    hSlider.value = height;
+                }
             }
             
             saveStateToLocal();
@@ -644,6 +665,28 @@
             num.addEventListener('input', () => { const v = parseFloat(num.value); if(isFinite(v)) { rng.value = v; updateFromAngle(v); } });
         }
         syncAngle('frameAngle');
+
+        function syncHeight(id) {
+            const num = document.getElementById(id), rng = document.getElementById('r'+id); if(!num||!rng) return;
+            const updateFromHeight = (val) => {
+                const h = parseFloat(val); if (!isFinite(h)) return;
+                const wingDist = getValueForCompute('wingDistance'); 
+                const crankDist = getValueForCompute('crankDistance');
+                const halfDiff = Math.abs(crankDist - wingDist) / 2;
+                
+                // Calculate new frame length (d)
+                const newD = Math.sqrt(h*h + halfDiff*halfDiff);
+                
+                // Update D UI
+                document.getElementById('d').value = newD.toFixed(1);
+                document.getElementById('rd').value = newD;
+                
+                recalculate();
+            };
+            rng.addEventListener('input', () => { num.value = rng.value; updateFromHeight(rng.value); });
+            num.addEventListener('input', () => { const v = parseFloat(num.value); if(isFinite(v)) { rng.value = v; updateFromHeight(v); } });
+        }
+        syncHeight('heightOffset');
 
         document.getElementById('speed-slider').addEventListener('input', e => { animationSpeed = parseFloat(e.target.value) / 100; });
         const revBtn = document.getElementById('reverse-btn');
@@ -725,13 +768,44 @@
             if(saved) try{ applyConfigObj(JSON.parse(saved)); } catch(e){}
         }
 
-        // --- File IO ---
+        // --- File IO (Updated to ZIP) ---
         function showToast(m){const t=document.getElementById('toast');t.innerText=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
         document.getElementById('btnShare').onclick = () => { const p=new URLSearchParams(getConfigObj()); navigator.clipboard.writeText(location.origin+location.pathname+'#'+p.toString()).then(()=>showToast(t('msg_link_copied'))); };
-        document.getElementById('btnSave').onclick = () => {
-            hasUnsavedChanges = false;
-            const b=new Blob([JSON.stringify(getConfigObj(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='config.json'; a.click(); showToast(t('msg_saved'));
+        
+        document.getElementById('btnSave').onclick = async () => {
+            if (presets.length === 0) {
+                showToast("请先在上方添加并保存至少一个方案");
+                return;
+            }
+            
+            const zip = new JSZip();
+            presets.forEach(p => {
+                // Sanitize name for filename
+                const safeName = p.name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'preset';
+                zip.file(`${safeName}.json`, JSON.stringify(p.config, null, 2));
+            });
+
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            const zipName = `Butterfly_Configs_${timeStr}.zip`;
+
+            try {
+                const content = await zip.generateAsync({type:"blob"});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = zipName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                showToast(t('msg_saved'));
+                hasUnsavedChanges = false;
+            } catch(e) {
+                console.error(e);
+                showToast("打包失败");
+            }
         };
+
         document.getElementById('btnLoad').onclick = () => document.getElementById('fileInput').click();
         document.getElementById('fileInput').onchange = (e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{try{applyConfigObj(JSON.parse(ev.target.result));showToast(t('msg_loaded'));}catch(x){alert('Invalid JSON');}}; r.readAsText(f); e.target.value=''; };
         document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com/StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator', '_blank'); });
@@ -741,7 +815,6 @@
             const el = document.getElementById('ghStars');
             if(!el) return;
             
-            // Offline check
             if (typeof navigator.onLine !== 'undefined' && !navigator.onLine) {
                 el.textContent = ''; 
                 return;
@@ -749,7 +822,7 @@
 
             const REPO = 'StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator';
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s Timeout
+            const timeoutId = setTimeout(() => controller.abort(), 2000); 
 
             try {
                 const response = await fetch(`https://api.github.com/repos/${REPO}`, { signal: controller.signal });
@@ -759,12 +832,10 @@
                     if (data.stargazers_count != null) el.textContent = `★ ${data.stargazers_count}`;
                 }
             } catch (e) {
-                // Silent fail
                 console.debug('GitHub API skipped');
             }
         }
 
-        // --- Unsaved Prompt ---
         window.addEventListener('beforeunload', (e) => {
             if (hasUnsavedChanges) {
                 e.preventDefault();
@@ -777,10 +848,10 @@
         const I18N = {
             'zh-CN': {
                 title: "3D 机械仿生蝴蝶", params_title: "连杆参数", param_a: "A", param_b: "B", param_c: "C", param_d: "D",
-                results_title: "分析", config_title: "布局配置", asm_label: "装配模式", control_frame_angle: "角度", control_crank_dist: "双侧距",
-                control_wing_dist: "翅根距", presets_title: "方案库", preset_ph: "输入新方案名称...", preset_default_name: "方案",
+                results_title: "分析", config_title: "布局配置", asm_label: "装配模式", control_frame_angle: "机架角度", control_crank_dist: "双侧间距",
+                control_wing_dist: "翅根间距", control_height_diff: "垂直高度", presets_title: "方案库", preset_ph: "输入新方案名称...", preset_default_name: "方案",
                 msg_preset_added: "方案已保存", msg_confirm_del: "确定要删除这个方案吗？", no_presets: "暂无保存的方案",
-                msg_link_copied: "链接已复制", msg_saved: "文件下载中", msg_loaded: "读取成功", btn_save: "保存文件", btn_load: "读取文件", btn_share: "生成链接",
+                msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "读取", btn_share: "生成链接",
                 solve_hint_ok: "已反推 {id} ≈ {val}", warn_not_cr: "非曲柄摇杆结构", err_no_assembly: "无法装配", err_no_pose: "无解",
                 control_rev_fwd: "正转", control_rev_rev: "反转", risk_low: "运行平稳", risk_high: "注意惯性", risk_critical: "极高风险",
                 res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ",
@@ -789,9 +860,9 @@
             'en': {
                 title: "3D Bionic Butterfly", params_title: "Linkages", param_a: "A", param_b: "B", param_c: "C", param_d: "D",
                 results_title: "Metrics", config_title: "Layout", asm_label: "Assembly", control_frame_angle: "Angle", control_crank_dist: "Width",
-                control_wing_dist: "Gap", presets_title: "Presets", preset_ph: "Preset name...", preset_default_name: "Preset",
+                control_wing_dist: "Gap", control_height_diff: "Height Diff", presets_title: "Presets", preset_ph: "Preset name...", preset_default_name: "Preset",
                 msg_preset_added: "Preset Saved", msg_confirm_del: "Delete this preset?", no_presets: "No presets yet",
-                msg_link_copied: "Link copied", msg_saved: "Downloading", msg_loaded: "Loaded", btn_save: "Save File", btn_load: "Load File", btn_share: "Copy Link",
+                msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Load File", btn_share: "Copy Link",
                 solve_hint_ok: "Solved {id} ≈ {val}", warn_not_cr: "Not Crank-Rocker", err_no_assembly: "Bad Assembly", err_no_pose: "No Solution",
                 control_rev_fwd: "Play", control_rev_rev: "Rev", risk_low: "Stable", risk_high: "Inertia Risk", risk_critical: "Critical",
                 res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ",
