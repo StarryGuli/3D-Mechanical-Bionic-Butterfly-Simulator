@@ -134,6 +134,13 @@
 
         /* Label Styling */
         .lbl-sm { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 600; }
+        
+        /* Offline Warning */
+        #offline-overlay {
+            position: fixed; inset: 0; background: #111827; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #ef4444; text-align: center; padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -153,7 +160,7 @@
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 <span data-i18n="gh_open_btn">GitHub</span>
                 <div class="h-4 w-px bg-white/20 mx-1"></div>
-                <span id="ghStars" class="text-xs font-mono text-yellow-400">★ -</span>
+                <span id="ghStars" class="text-xs font-mono text-yellow-400">★</span>
             </button>
             <div class="glass-panel rounded-lg p-1 flex">
                 <button id="btnZH" class="px-3 py-1 text-xs font-semibold rounded text-white bg-white/10 transition">CN</button>
@@ -371,6 +378,19 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
     (function() {
+        // 0. Dependency Check
+        if (typeof THREE === 'undefined') {
+            const warning = document.createElement('div');
+            Object.assign(warning.style, {
+                position: 'fixed', inset: '0', background: '#111827', zIndex: '9999',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                color: '#ef4444', textAlign: 'center', padding: '20px'
+            });
+            warning.innerHTML = '<h2 style="font-size:1.5rem;margin-bottom:10px;font-weight:bold">⚠️ 无法加载仿真引擎</h2><p style="color:#d1d5db">检测到您处于离线状态或网络受限，无法加载 Three.js 核心库。<br>本工具依赖 CDN 资源，请检查网络连接后刷新页面。</p>';
+            document.body.appendChild(warning);
+            return;
+        }
+
         // --- Core Math (Unchanged) ---
         function circleIntersections(x0, y0, r0, x1, y1, r1) { const dx = x1 - x0, dy = y1 - y0; const d = Math.hypot(dx, dy); if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return []; const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d); const h2 = r0 * r0 - a * a; const h = Math.sqrt(Math.max(0, h2)); const xm = x0 + a * dx / d; const ym = y0 + a * dy / d; const rx = -dy * (h / d); const ry = dx * (h / d); return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }]; }
         function choosePoint(p1, p2, asmMode) { if (!p1) return null; if (!p2) return p1; return (asmMode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2); }
@@ -716,15 +736,32 @@
         document.getElementById('fileInput').onchange = (e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{try{applyConfigObj(JSON.parse(ev.target.result));showToast(t('msg_loaded'));}catch(x){alert('Invalid JSON');}}; r.readAsText(f); e.target.value=''; };
         document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com/StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator', '_blank'); });
 
-        // --- Stars Fetch ---
-        function fetchGitHubStars() {
+        // --- Stars Fetch (Robust) ---
+        async function fetchGitHubStars() {
+            const el = document.getElementById('ghStars');
+            if(!el) return;
+            
+            // Offline check
+            if (typeof navigator.onLine !== 'undefined' && !navigator.onLine) {
+                el.textContent = ''; 
+                return;
+            }
+
             const REPO = 'StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator';
-            fetch(`https://api.github.com/repos/${REPO}`)
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.getElementById('ghStars');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s Timeout
+
+            try {
+                const response = await fetch(`https://api.github.com/repos/${REPO}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (response.ok) {
+                    const data = await response.json();
                     if (data.stargazers_count != null) el.textContent = `★ ${data.stargazers_count}`;
-                }).catch(e => console.log('Stars fetch fail'));
+                }
+            } catch (e) {
+                // Silent fail
+                console.debug('GitHub API skipped');
+            }
         }
 
         // --- Unsaved Prompt ---
@@ -776,7 +813,11 @@
         document.getElementById('btnZH').onclick = () => setLang('zh-CN'); document.getElementById('btnEN').onclick = () => setLang('en');
         
         // --- Init ---
-        init3D(); createMechanismModels(); loadPresets(); loadInitialState(); setLang('zh-CN'); update(); fetchGitHubStars();
+        init3D(); createMechanismModels(); loadPresets(); loadInitialState(); setLang('zh-CN'); update(); 
+        
+        // Safe fetch call at end
+        fetchGitHubStars();
+        
         document.body.dataset.loaded = "true"; // Flag to enable dirty check
     })();
     </script>
