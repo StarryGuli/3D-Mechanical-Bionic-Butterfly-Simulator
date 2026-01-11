@@ -74,13 +74,20 @@
         }
         .param-input.auto-fill { color: var(--accent-blue); font-weight: bold; }
 
-        /* --- 下拉菜单 --- */
-        select.mode-select {
+        /* --- 分段按钮 (Toggle Group) --- */
+        .toggle-group {
             background-color: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
-            color: #d1d5db; border-radius: 6px; padding: 4px 8px; font-size: 0.8rem;
-            outline: none; cursor: pointer; transition: all 0.2s;
+            border-radius: 6px; padding: 2px; display: flex; width: 100%;
         }
-        select.mode-select:hover { background-color: rgba(0, 0, 0, 0.5); border-color: #4b5563; }
+        .toggle-btn {
+            flex: 1; text-align: center; padding: 4px 0; font-size: 0.75rem; border-radius: 4px;
+            color: #9ca3af; transition: all 0.2s;
+        }
+        .toggle-btn:hover { color: #fff; }
+        .toggle-btn.active {
+            background-color: var(--accent-blue); color: #fff; font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
 
         /* --- 侧边栏 --- */
         #sidebar {
@@ -233,10 +240,14 @@
                         <div class="w-1 h-4 bg-blue-500 rounded-full"></div>
                         <h3 class="lbl-sm" data-i18n="config_title">布局配置</h3>
                     </div>
-                    <select id="asm_mode" class="mode-select text-xs">
-                        <option value="open">Mode A (Open)</option>
-                        <option value="crossed">Mode B (Crossed)</option>
-                    </select>
+                    <!-- New Toggle Buttons for Assembly Mode -->
+                    <div class="w-32">
+                        <div class="toggle-group">
+                            <button id="btnAsmOpen" class="toggle-btn active" data-val="open" data-i18n="asm_open_btn">Open</button>
+                            <button id="btnAsmCrossed" class="toggle-btn" data-val="crossed" data-i18n="asm_crossed_btn">Cross</button>
+                        </div>
+                        <input type="hidden" id="asm_mode" value="open">
+                    </div>
                 </div>
                 
                 <div class="space-y-4">
@@ -251,7 +262,7 @@
                             <input id="frameAngle" type="number" class="param-input">
                         </div>
                     </div>
-                    <!-- Height Offset (New) -->
+                    <!-- Height Offset -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
                             <span data-i18n="control_height_diff">垂直高度</span>
@@ -363,18 +374,18 @@
             <!-- IO Actions -->
             <div class="pt-6 border-t border-white/10 grid grid-cols-3 gap-3">
                 <button id="btnSave" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    <span data-i18n="btn_save">打包导出</span>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span data-i18n="btn_save">保存</span>
                 </button>
                 <button id="btnLoad" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     <span data-i18n="btn_load">读取</span>
                 </button>
                 <button id="btnShare" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="group-hover:text-white transition"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                     <span data-i18n="btn_share">链接</span>
                 </button>
-                <input type="file" id="fileInput" accept=".json" style="display:none">
+                <input type="file" id="fileInput" accept=".json,.zip" style="display:none">
             </div>
         </div>
     </div>
@@ -673,14 +684,8 @@
                 const wingDist = getValueForCompute('wingDistance'); 
                 const crankDist = getValueForCompute('crankDistance');
                 const halfDiff = Math.abs(crankDist - wingDist) / 2;
-                
-                // Calculate new frame length (d)
                 const newD = Math.sqrt(h*h + halfDiff*halfDiff);
-                
-                // Update D UI
-                document.getElementById('d').value = newD.toFixed(1);
-                document.getElementById('rd').value = newD;
-                
+                document.getElementById('d').value = newD.toFixed(1); document.getElementById('rd').value = newD;
                 recalculate();
             };
             rng.addEventListener('input', () => { num.value = rng.value; updateFromHeight(rng.value); });
@@ -691,7 +696,27 @@
         document.getElementById('speed-slider').addEventListener('input', e => { animationSpeed = parseFloat(e.target.value) / 100; });
         const revBtn = document.getElementById('reverse-btn');
         revBtn.addEventListener('click', () => { animationDirection *= -1; updateLangUI(); });
-        document.getElementById('asm_mode').addEventListener('change', () => { resetAnimationState(); recalculate(); });
+        
+        // --- Assembly Mode Toggle Logic ---
+        const asmInput = document.getElementById('asm_mode');
+        const btnAsmOpen = document.getElementById('btnAsmOpen');
+        const btnAsmCrossed = document.getElementById('btnAsmCrossed');
+
+        function setAsmMode(mode) {
+            asmInput.value = mode;
+            if (mode === 'open') {
+                btnAsmOpen.classList.add('active');
+                btnAsmCrossed.classList.remove('active');
+            } else {
+                btnAsmCrossed.classList.add('active');
+                btnAsmOpen.classList.remove('active');
+            }
+            resetAnimationState();
+            recalculate();
+        }
+
+        btnAsmOpen.addEventListener('click', () => setAsmMode('open'));
+        btnAsmCrossed.addEventListener('click', () => setAsmMode('crossed'));
 
         // --- Config / Presets ---
         function getConfigObj() {
@@ -706,7 +731,7 @@
             if(!cfg) return;
             const sv = (id, v) => { const el=document.getElementById(id), rng=document.getElementById('r'+id); if(el&&v!=null){el.value=v;clearAuto(id);} if(rng&&v!=null)rng.value=v; };
             sv('a', cfg.a); sv('b', cfg.b); sv('c', cfg.c); sv('d', cfg.d); sv('crankDistance', cfg.crankDistance); sv('wingDistance', cfg.wingDistance);
-            if(cfg.asm) document.getElementById('asm_mode').value = cfg.asm;
+            if(cfg.asm) setAsmMode(cfg.asm); // Use the new setter
             if(cfg.speed!=null) document.getElementById('speed-slider').value = cfg.speed;
             resetAnimationState(); recalculate();
         }
@@ -725,6 +750,18 @@
             presets.push({ name, config: getConfigObj() });
             savePresets(); inp.value = ''; showToast(t('msg_preset_added'));
         }
+        
+        // Helper to safely add an imported preset with rename logic
+        function addImportedPreset(name, config) {
+            let uniqueName = name;
+            let counter = 1;
+            while(presets.some(p => p.name === uniqueName)) {
+                uniqueName = `${name} (${counter++})`;
+            }
+            presets.push({ name: uniqueName, config: config });
+            savePresets();
+        }
+
         function deletePreset(idx) {
             if(confirm(t('msg_confirm_del'))) { presets.splice(idx, 1); savePresets(); }
         }
@@ -768,7 +805,7 @@
             if(saved) try{ applyConfigObj(JSON.parse(saved)); } catch(e){}
         }
 
-        // --- File IO (Updated to ZIP) ---
+        // --- File IO (Import Logic Updated) ---
         function showToast(m){const t=document.getElementById('toast');t.innerText=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
         document.getElementById('btnShare').onclick = () => { const p=new URLSearchParams(getConfigObj()); navigator.clipboard.writeText(location.origin+location.pathname+'#'+p.toString()).then(()=>showToast(t('msg_link_copied'))); };
         
@@ -780,7 +817,6 @@
             
             const zip = new JSZip();
             presets.forEach(p => {
-                // Sanitize name for filename
                 const safeName = p.name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'preset';
                 zip.file(`${safeName}.json`, JSON.stringify(p.config, null, 2));
             });
@@ -807,7 +843,58 @@
         };
 
         document.getElementById('btnLoad').onclick = () => document.getElementById('fileInput').click();
-        document.getElementById('fileInput').onchange = (e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{try{applyConfigObj(JSON.parse(ev.target.result));showToast(t('msg_loaded'));}catch(x){alert('Invalid JSON');}}; r.readAsText(f); e.target.value=''; };
+        
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            
+            // Reset input so same file can be selected again
+            e.target.value = '';
+
+            try {
+                if (file.name.endsWith('.zip')) {
+                    const zip = await JSZip.loadAsync(file);
+                    let count = 0;
+                    
+                    const promises = [];
+                    zip.forEach((relativePath, zipEntry) => {
+                        if (!zipEntry.dir && zipEntry.name.toLowerCase().endsWith('.json')) {
+                            // Extract filename without extension for preset name
+                            // Handles paths inside zip if present (e.g., folder/myConfig.json -> myConfig)
+                            const baseName = zipEntry.name.split('/').pop().replace(/\.json$/i, '');
+                            
+                            const promise = zipEntry.async("string").then(content => {
+                                try {
+                                    const cfg = JSON.parse(content);
+                                    addImportedPreset(baseName, cfg);
+                                    count++;
+                                } catch (err) {
+                                    console.warn(`Failed to parse ${zipEntry.name}`);
+                                }
+                            });
+                            promises.push(promise);
+                        }
+                    });
+                    
+                    await Promise.all(promises);
+                    if (count > 0) showToast(`成功导入 ${count} 个方案`);
+                    else showToast("压缩包内未找到有效配置");
+                    
+                } else if (file.name.endsWith('.json')) {
+                    const text = await file.text();
+                    const cfg = JSON.parse(text);
+                    const baseName = file.name.replace(/\.json$/i, '');
+                    addImportedPreset(baseName, cfg);
+                    showToast("方案已导入");
+                } else {
+                    alert("仅支持 .json 或 .zip 文件");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("文件读取失败");
+            }
+        });
+
         document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com/StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator', '_blank'); });
 
         // --- Stars Fetch (Robust) ---
@@ -851,22 +938,24 @@
                 results_title: "分析", config_title: "布局配置", asm_label: "装配模式", control_frame_angle: "机架角度", control_crank_dist: "双侧间距",
                 control_wing_dist: "翅根间距", control_height_diff: "垂直高度", presets_title: "方案库", preset_ph: "输入新方案名称...", preset_default_name: "方案",
                 msg_preset_added: "方案已保存", msg_confirm_del: "确定要删除这个方案吗？", no_presets: "暂无保存的方案",
-                msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "读取", btn_share: "生成链接",
+                msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "导入", btn_share: "生成链接",
                 solve_hint_ok: "已反推 {id} ≈ {val}", warn_not_cr: "非曲柄摇杆结构", err_no_assembly: "无法装配", err_no_pose: "无解",
                 control_rev_fwd: "正转", control_rev_rev: "反转", risk_low: "运行平稳", risk_high: "注意惯性", risk_critical: "极高风险",
                 res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ",
-                gh_open_btn: "GitHub", non_grashof: "非Grashof", crank_rocker: "曲柄摇杆", grashof: "普通Grashof"
+                gh_open_btn: "GitHub", non_grashof: "非Grashof", crank_rocker: "曲柄摇杆", grashof: "普通Grashof",
+                asm_open_btn: "Open", asm_crossed_btn: "Cross"
             },
             'en': {
                 title: "3D Bionic Butterfly", params_title: "Linkages", param_a: "A", param_b: "B", param_c: "C", param_d: "D",
                 results_title: "Metrics", config_title: "Layout", asm_label: "Assembly", control_frame_angle: "Angle", control_crank_dist: "Width",
                 control_wing_dist: "Gap", control_height_diff: "Height Diff", presets_title: "Presets", preset_ph: "Preset name...", preset_default_name: "Preset",
                 msg_preset_added: "Preset Saved", msg_confirm_del: "Delete this preset?", no_presets: "No presets yet",
-                msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Load File", btn_share: "Copy Link",
+                msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Import", btn_share: "Copy Link",
                 solve_hint_ok: "Solved {id} ≈ {val}", warn_not_cr: "Not Crank-Rocker", err_no_assembly: "Bad Assembly", err_no_pose: "No Solution",
                 control_rev_fwd: "Play", control_rev_rev: "Rev", risk_low: "Stable", risk_high: "Inertia Risk", risk_critical: "Critical",
                 res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ",
-                gh_open_btn: "GitHub", non_grashof: "Non-Grashof", crank_rocker: "Crank-Rocker", grashof: "Grashof"
+                gh_open_btn: "GitHub", non_grashof: "Non-Grashof", crank_rocker: "Crank-Rocker", grashof: "Grashof",
+                asm_open_btn: "Open", asm_crossed_btn: "Cross"
             }
         };
         function t(k) { return I18N[STATE.lang][k] || k; }
