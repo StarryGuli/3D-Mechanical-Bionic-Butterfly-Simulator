@@ -299,27 +299,38 @@
             <div class="hidden md:block w-px bg-white/10 self-stretch"></div>
 
             <!-- SECTION 3: ANALYTICS -->
-            <div class="md:w-56 flex flex-col">
+            <div class="md:w-60 flex flex-col">
                 <div class="flex items-center gap-2 mb-3">
                     <div class="w-1 h-4 bg-purple-500 rounded-full"></div>
                     <h3 class="lbl-sm" data-i18n="results_title">实时分析</h3>
                 </div>
                 
                 <div class="flex flex-col gap-2 flex-grow">
-                    <!-- Data Cards -->
+                    <!-- Data Grid (2x2) -->
                     <div class="grid grid-cols-2 gap-2">
                         <div class="bg-black/20 rounded p-2 border border-white/5">
                             <div class="text-[9px] text-gray-500 uppercase">Type</div>
                             <div id="res_classify" class="text-xs font-bold text-gray-200 truncate mt-0.5">—</div>
                         </div>
                         <div class="bg-black/20 rounded p-2 border border-white/5">
+                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_k">K Factor</div>
+                            <div id="res_k" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
+                        </div>
+                        <div class="bg-black/20 rounded p-2 border border-white/5">
                             <div class="text-[9px] text-gray-500 uppercase">Swing</div>
-                            <div class="text-xs font-bold text-gray-200 mt-0.5 font-mono"><input id="res_swing" readonly class="bg-transparent w-full outline-none cursor-default p-0" value="—">°</div>
+                            <div class="text-xs font-bold text-gray-200 mt-0.5 font-mono flex items-center">
+                                <input id="res_swing" readonly class="bg-transparent w-full outline-none cursor-default p-0" value="—">
+                                <span>°</span>
+                            </div>
+                        </div>
+                        <div class="bg-black/20 rounded p-2 border border-white/5">
+                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_gamma_max">γ max</div>
+                            <div id="res_max_gamma" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
                         </div>
                     </div>
 
                     <!-- Transmission Angle Gauge -->
-                    <div class="bg-gradient-to-br from-white/5 to-transparent p-3 rounded-lg border border-white/10 flex-grow flex flex-col justify-center">
+                    <div class="bg-gradient-to-br from-white/5 to-transparent p-3 rounded-lg border border-white/10 flex-grow flex flex-col justify-center mt-1">
                         <div class="flex justify-between items-baseline mb-2">
                             <span class="text-[10px] text-gray-400">Min Gamma γ</span>
                             <span id="res_min_gamma" class="text-lg font-mono font-bold text-white tracking-tight">—</span>
@@ -411,7 +422,23 @@
         // --- Core Math (Standard Parallel Logic) ---
         function circleIntersections(x0, y0, r0, x1, y1, r1) { const dx = x1 - x0, dy = y1 - y0; const d = Math.hypot(dx, dy); if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return []; const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d); const h2 = r0 * r0 - a * a; const h = Math.sqrt(Math.max(0, h2)); const xm = x0 + a * dx / d; const ym = y0 + a * dy / d; const rx = -dy * (h / d); const ry = dx * (h / d); return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }]; }
         function choosePoint(p1, p2, asmMode) { if (!p1) return null; if (!p2) return p1; return (asmMode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2); }
-        function calculateTransmissionQuality(a, b, c, d) { const f1 = Math.abs(d - a), f2 = d + a; const getGamma = (f) => { const val = (b*b + c*c - f*f) / (2*b*c); if (val < -1 || val > 1) return 0; return Math.acos(val) * 180 / Math.PI; }; const gamma1 = getGamma(f1), gamma2 = getGamma(f2); const distToDead1 = Math.min(gamma1, 180 - gamma1), distToDead2 = Math.min(gamma2, 180 - gamma2); return { minGamma: Math.min(distToDead1, distToDead2) }; }
+        function calculateTransmissionQuality(a, b, c, d) { 
+            const f1 = Math.abs(d - a), f2 = d + a; 
+            const getGamma = (f) => { 
+                const val = (b*b + c*c - f*f) / (2*b*c); 
+                if (val < -1 || val > 1) return 0; 
+                return Math.acos(val) * 180 / Math.PI; 
+            }; 
+            const gamma1 = getGamma(f1), gamma2 = getGamma(f2);
+            // Critical Transmission Angle (deviation from 90 is bad, closer to 0 or 180 is bad)
+            // Usually defined as min(gamma, 180-gamma). We call this "Min Gamma" for the gauge.
+            const minGamma = Math.min(gamma1, 180 - gamma1, gamma2, 180 - gamma2); 
+            // Max Gamma is the largest angle reached (could be > 90).
+            // Actually, let's just return the two extreme values of the angle itself.
+            const gMin = Math.min(gamma1, gamma2);
+            const gMax = Math.max(gamma1, gamma2);
+            return { minGamma: minGamma, gMin: gMin, gMax: gMax }; 
+        }
         function classifyGrashof(a,b,c,d){ const arr=[a,b,c,d].slice().sort((x,y) => x-y); const S=arr[0], L=arr[3], P=arr[1], Q=arr[2]; const isGrashof = S + L <= P + Q; if (!isGrashof) return { type: 'Non-Grashof', key: 'non_grashof' }; if (S === a && isGrashof) return { type: 'Crank-Rocker', key: 'crank_rocker' }; return { type: 'Grashof', key: 'grashof' }; }
         function feasibleThetaRange(a,b,c,d){ const rMax=b+c, rMin=Math.abs(b-c); const cosHi=(a*a + d*d - rMin*rMin)/(2*a*d); const cosLo=(a*a + d*d - rMax*rMax)/(2*a*d); const clamp = (x) => Math.max(-1,Math.min(1,x)); const lo=Math.acos(clamp(cosHi)); const hi=Math.acos(clamp(cosLo)); if(isNaN(lo)||isNaN(hi) || lo > hi) return []; return [ [lo, hi], [2*Math.PI - hi, 2*Math.PI - lo] ]; }
         function solvePose(a,b,c,d,theta,asm){ const O2 = { x: 0, y: 0 }, O4 = { x: d, y: 0 }; const B = { x: a*Math.cos(theta), y: a*Math.sin(theta) }; const inter = circleIntersections(B.x,B.y,b, O4.x,O4.y,c); if(inter.length === 0) return null; const C = choosePoint(inter[0], inter[1], asm); const phi = Math.atan2(C.y - O4.y, C.x-O4.x); return { O2, O4, B, C, phi }; }
@@ -430,13 +457,20 @@
             if (phis.length === 0) return { ok: false, msg: t('err_no_pose') };
             const phiMin = Math.min(...phis); const phiMax = Math.max(...phis);
             const swing = (phiMax - phiMin) * 180 / Math.PI;
+            
+            // Calculate K (Time Ratio)
             let inc = 0, dec = 0;
-            for(let i=1; i<phis.length; i++){ const dphi = phis[i]-phis[i-1]; const dth = thetas[i]-thetas[i-1]; if(dphi > 0) inc += dth; else if(dphi < 0) dec += dth; }
+            for(let i=1; i<phis.length; i++){ 
+                const dphi = phis[i]-phis[i-1]; const dth = thetas[i]-thetas[i-1]; 
+                if(dphi > 0) inc += dth; else if(dphi < 0) dec += dth; 
+            }
+            // K is (Time of Forward) / (Time of Return) or vice versa, usually > 1
             const K = (inc > 1e-6 && dec > 1e-6) ? Math.max(inc,dec) / Math.min(inc,dec) : 1;
+            
             const coverage = intervals.reduce((sum, range) => sum + (range[1] - range[0]), 0) / (2 * Math.PI);
             const crankAFull = coverage > 0.999;
             const classify = classifyGrashof(a,b,c,d);
-            let quality = { minGamma: 0 };
+            let quality = { minGamma: 0, gMax: 0 };
             if (classify.type === 'Crank-Rocker' && crankAFull) quality = calculateTransmissionQuality(a,b,c,d);
             return { ok: true, swing, K, coverageA: coverage, crankAFull, classify, quality };
         }
@@ -618,22 +652,29 @@
             checkActivePreset(); 
 
             const result = computeAll(params.a, params.b, params.c, params.d, params.asm);
-            const els = { classify: document.getElementById('res_classify'), swing: document.getElementById('res_swing'), gamma: document.getElementById('res_min_gamma'), badge: document.getElementById('res_risk_badge'), bar: document.getElementById('score_bar'), warning: document.getElementById('warning-message') };
+            const els = { classify: document.getElementById('res_classify'), swing: document.getElementById('res_swing'), gamma: document.getElementById('res_min_gamma'), k: document.getElementById('res_k'), max_gamma: document.getElementById('res_max_gamma'), badge: document.getElementById('res_risk_badge'), bar: document.getElementById('score_bar'), warning: document.getElementById('warning-message') };
             els.warning.textContent = '';
             
             if (!result.ok) {
                 els.classify.textContent = '—'; els.classify.className = 'text-xs font-bold text-gray-500 mt-0.5 truncate';
-                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%';
+                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.k.textContent = '—'; els.max_gamma.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%';
             } else {
                 const isCR = result.classify.type === 'Crank-Rocker';
                 els.classify.textContent = t(result.classify.key);
                 els.classify.className = `text-xs font-bold mt-0.5 truncate ${isCR ? 'text-emerald-400' : 'text-amber-400'}`;
                 if (activeTargetId !== 'res_swing') els.swing.value = result.swing.toFixed(1);
+                
+                // New Values
+                els.k.textContent = result.K.toFixed(2);
+                
                 if (!isCR) els.warning.textContent = t('warn_not_cr');
 
                 if (isCR && result.quality) {
                     const mg = result.quality.minGamma;
+                    const maxG = result.quality.gMax;
                     els.gamma.textContent = mg.toFixed(1) + '°';
+                    els.max_gamma.textContent = maxG.toFixed(1) + '°';
+                    
                     let score = (mg > 45) ? 100 : (mg / 45) * 100;
                     let sk = 'risk_low', sc = 'bg-emerald-500/20 text-emerald-400', bc = '#34d399';
                     if (mg < 25) { sk = 'risk_critical'; sc = 'bg-red-500/20 text-red-400'; bc = '#ef4444'; }
@@ -641,7 +682,7 @@
                     els.badge.textContent = t(sk); els.badge.className = `text-[9px] font-bold px-1.5 py-0.5 rounded ${sc}`;
                     els.bar.style.width = `${Math.min(100, score)}%`; els.bar.style.backgroundColor = bc;
                 } else {
-                    els.gamma.textContent = '-'; els.badge.textContent = 'N/A'; els.bar.style.width = '0%';
+                    els.gamma.textContent = '-'; els.max_gamma.textContent = '-'; els.badge.textContent = 'N/A'; els.bar.style.width = '0%';
                 }
             }
             updateWingShape();
@@ -941,7 +982,7 @@
                 msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "导入", btn_share: "生成链接",
                 solve_hint_ok: "已反推 {id} ≈ {val}", warn_not_cr: "非曲柄摇杆结构", err_no_assembly: "无法装配", err_no_pose: "无解",
                 control_rev_fwd: "正转", control_rev_rev: "反转", risk_low: "运行平稳", risk_high: "注意惯性", risk_critical: "极高风险",
-                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ",
+                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ", res_k: "行程速比 K", res_gamma_max: "γ Max",
                 gh_open_btn: "GitHub", non_grashof: "非Grashof", crank_rocker: "曲柄摇杆", grashof: "普通Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             },
@@ -953,7 +994,7 @@
                 msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Import", btn_share: "Copy Link",
                 solve_hint_ok: "Solved {id} ≈ {val}", warn_not_cr: "Not Crank-Rocker", err_no_assembly: "Bad Assembly", err_no_pose: "No Solution",
                 control_rev_fwd: "Play", control_rev_rev: "Rev", risk_low: "Stable", risk_high: "Inertia Risk", risk_critical: "Critical",
-                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ",
+                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ", res_k: "K Factor", res_gamma_max: "γ Max",
                 gh_open_btn: "GitHub", non_grashof: "Non-Grashof", crank_rocker: "Crank-Rocker", grashof: "Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             }
