@@ -306,16 +306,15 @@
                 </div>
                 
                 <div class="flex flex-col gap-2 flex-grow">
-                    <!-- Data Grid (2x2) -->
+                    <!-- Data Grid (Layout Optimized) -->
                     <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-black/20 rounded p-2 border border-white/5">
+                        <!-- Type: Full Width -->
+                        <div class="bg-black/20 rounded p-2 border border-white/5 col-span-2 flex justify-between items-center">
                             <div class="text-[9px] text-gray-500 uppercase">Type</div>
-                            <div id="res_classify" class="text-xs font-bold text-gray-200 truncate mt-0.5">—</div>
+                            <div id="res_classify" class="text-xs font-bold text-gray-200 truncate">—</div>
                         </div>
-                        <div class="bg-black/20 rounded p-2 border border-white/5">
-                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_k">K Factor</div>
-                            <div id="res_k" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
-                        </div>
+                        
+                        <!-- Swing -->
                         <div class="bg-black/20 rounded p-2 border border-white/5">
                             <div class="text-[9px] text-gray-500 uppercase">Swing</div>
                             <div class="text-xs font-bold text-gray-200 mt-0.5 font-mono flex items-center">
@@ -323,9 +322,20 @@
                                 <span>°</span>
                             </div>
                         </div>
+
+                        <!-- K Factor -->
                         <div class="bg-black/20 rounded p-2 border border-white/5">
-                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_gamma_max">γ max</div>
-                            <div id="res_max_gamma" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
+                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_k">K Factor</div>
+                            <div id="res_k" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
+                        </div>
+
+                        <!-- Pressure Angle (Alpha) - Full Width -->
+                        <div class="bg-black/20 rounded p-2 border border-white/5 col-span-2 flex justify-between items-center">
+                            <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_alpha">Max Pressure α</div>
+                            <div class="flex items-baseline gap-1">
+                                <div id="res_alpha_max" class="text-xs font-bold text-gray-200 font-mono">—</div>
+                                <div class="text-[9px] text-gray-500">(Ideal 0°)</div>
+                            </div>
                         </div>
                     </div>
 
@@ -434,7 +444,6 @@
             // Usually defined as min(gamma, 180-gamma). We call this "Min Gamma" for the gauge.
             const minGamma = Math.min(gamma1, 180 - gamma1, gamma2, 180 - gamma2); 
             // Max Gamma is the largest angle reached (could be > 90).
-            // Actually, let's just return the two extreme values of the angle itself.
             const gMin = Math.min(gamma1, gamma2);
             const gMax = Math.max(gamma1, gamma2);
             return { minGamma: minGamma, gMin: gMin, gMax: gMax }; 
@@ -652,12 +661,12 @@
             checkActivePreset(); 
 
             const result = computeAll(params.a, params.b, params.c, params.d, params.asm);
-            const els = { classify: document.getElementById('res_classify'), swing: document.getElementById('res_swing'), gamma: document.getElementById('res_min_gamma'), k: document.getElementById('res_k'), max_gamma: document.getElementById('res_max_gamma'), badge: document.getElementById('res_risk_badge'), bar: document.getElementById('score_bar'), warning: document.getElementById('warning-message') };
+            const els = { classify: document.getElementById('res_classify'), swing: document.getElementById('res_swing'), gamma: document.getElementById('res_min_gamma'), k: document.getElementById('res_k'), alpha_max: document.getElementById('res_alpha_max'), badge: document.getElementById('res_risk_badge'), bar: document.getElementById('score_bar'), warning: document.getElementById('warning-message') };
             els.warning.textContent = '';
             
             if (!result.ok) {
                 els.classify.textContent = '—'; els.classify.className = 'text-xs font-bold text-gray-500 mt-0.5 truncate';
-                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.k.textContent = '—'; els.max_gamma.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%';
+                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.k.textContent = '—'; els.alpha_max.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%';
             } else {
                 const isCR = result.classify.type === 'Crank-Rocker';
                 els.classify.textContent = t(result.classify.key);
@@ -671,9 +680,10 @@
 
                 if (isCR && result.quality) {
                     const mg = result.quality.minGamma;
-                    const maxG = result.quality.gMax;
+                    const maxAlpha = 90 - mg; // Max pressure angle is complement of min transmission angle (deviation from 90)
+
                     els.gamma.textContent = mg.toFixed(1) + '°';
-                    els.max_gamma.textContent = maxG.toFixed(1) + '°';
+                    els.alpha_max.textContent = maxAlpha.toFixed(1) + '°';
                     
                     let score = (mg > 45) ? 100 : (mg / 45) * 100;
                     let sk = 'risk_low', sc = 'bg-emerald-500/20 text-emerald-400', bc = '#34d399';
@@ -682,7 +692,7 @@
                     els.badge.textContent = t(sk); els.badge.className = `text-[9px] font-bold px-1.5 py-0.5 rounded ${sc}`;
                     els.bar.style.width = `${Math.min(100, score)}%`; els.bar.style.backgroundColor = bc;
                 } else {
-                    els.gamma.textContent = '-'; els.max_gamma.textContent = '-'; els.badge.textContent = 'N/A'; els.bar.style.width = '0%';
+                    els.gamma.textContent = '-'; els.alpha_max.textContent = '-'; els.badge.textContent = 'N/A'; els.bar.style.width = '0%';
                 }
             }
             updateWingShape();
@@ -982,7 +992,7 @@
                 msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "导入", btn_share: "生成链接",
                 solve_hint_ok: "已反推 {id} ≈ {val}", warn_not_cr: "非曲柄摇杆结构", err_no_assembly: "无法装配", err_no_pose: "无解",
                 control_rev_fwd: "正转", control_rev_rev: "反转", risk_low: "运行平稳", risk_high: "注意惯性", risk_critical: "极高风险",
-                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ", res_k: "行程速比 K", res_gamma_max: "γ Max",
+                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ", res_k: "行程速比 K", res_alpha: "最大压力角 α",
                 gh_open_btn: "GitHub", non_grashof: "非Grashof", crank_rocker: "曲柄摇杆", grashof: "普通Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             },
@@ -994,7 +1004,7 @@
                 msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Import", btn_share: "Copy Link",
                 solve_hint_ok: "Solved {id} ≈ {val}", warn_not_cr: "Not Crank-Rocker", err_no_assembly: "Bad Assembly", err_no_pose: "No Solution",
                 control_rev_fwd: "Play", control_rev_rev: "Rev", risk_low: "Stable", risk_high: "Inertia Risk", risk_critical: "Critical",
-                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ", res_k: "K Factor", res_gamma_max: "γ Max",
+                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ", res_k: "K Factor", res_alpha: "Max Pressure α",
                 gh_open_btn: "GitHub", non_grashof: "Non-Grashof", crank_rocker: "Crank-Rocker", grashof: "Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             }
