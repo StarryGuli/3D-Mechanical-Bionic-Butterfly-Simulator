@@ -3,35 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D机械仿生蝴蝶 - 专业版</title>
+    <title>3D机械仿生蝴蝶 - 物理驱动版 (修正版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Inter 字体提升质感 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 引入 JSZip 用于打包下载 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --glass-bg: rgba(17, 24, 39, 0.75);
             --glass-border: rgba(255, 255, 255, 0.08);
             --accent-blue: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.5);
         }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #0f1115; /* 更深邃的背景 */
+            background-color: #0f1115;
             background-image: radial-gradient(circle at 50% 50%, #1f2937 0%, #0f1115 100%);
             color: #e5e7eb;
             overflow: hidden;
         }
         
-        /* 3D Canvas */
         #mechanism-canvas {
             width: 100%; height: 100%; display: block;
             position: absolute; top: 0; left: 0; z-index: 0;
         }
 
-        /* --- 玻璃拟态面板 --- */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -40,7 +35,6 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
 
-        /* --- 自定义滑块 (Sleek Range) --- */
         input[type="range"] {
             -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
             background: rgba(255, 255, 255, 0.1); border-radius: 99px; outline: none;
@@ -55,13 +49,11 @@
         }
         input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); background: #fff; }
         
-        /* 彩色滑块轨道 */
         #ra::-webkit-slider-thumb { background: #f87171; border-color: #7f1d1d; }
         #rb::-webkit-slider-thumb { background: #34d399; border-color: #064e3b; }
         #rc::-webkit-slider-thumb { background: #a78bfa; border-color: #4c1d95; }
         #rd::-webkit-slider-thumb { background: #9ca3af; border-color: #1f2937; }
 
-        /* --- 参数输入框 --- */
         .param-input {
             background: rgba(0, 0, 0, 0.3); border: 1px solid transparent;
             border-radius: 6px; padding: 2px 0; width: 48px; 
@@ -74,7 +66,6 @@
         }
         .param-input.auto-fill { color: var(--accent-blue); font-weight: bold; }
 
-        /* --- 分段按钮 (Toggle Group) --- */
         .toggle-group {
             background-color: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
             border-radius: 6px; padding: 2px; display: flex; width: 100%;
@@ -89,9 +80,8 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
-        /* --- 侧边栏 --- */
         #sidebar {
-            background: rgba(15, 23, 42, 0.95); /* 更深 */
+            background: rgba(15, 23, 42, 0.95);
             border-left: 1px solid var(--glass-border);
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             transform: translateX(100%);
@@ -99,7 +89,6 @@
         }
         #sidebar.open { transform: translateX(0); }
 
-        /* --- 方案 Chips --- */
         .preset-chip {
             background: rgba(255, 255, 255, 0.05); border: 1px solid transparent;
             padding: 8px 12px; border-radius: 8px; display: flex; align-items: center;
@@ -117,13 +106,11 @@
         }
         .preset-delete:hover { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 
-        /* --- 滚动条 --- */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 99px; }
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 
-        /* --- 顶部按钮 --- */
         .nav-btn {
             background: rgba(255, 255, 255, 0.05); color: #d1d5db;
             padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
@@ -131,7 +118,6 @@
         }
         .nav-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255,255,255,0.1); }
         
-        /* Toast */
         #toast {
             position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-150%);
             background: #10b981; color: #fff; padding: 8px 20px; border-radius: 99px;
@@ -141,7 +127,6 @@
         }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
-        /* Label Styling */
         .lbl-sm { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 600; }
         
     </style>
@@ -150,20 +135,17 @@
 
     <div id="toast"></div>
 
-    <!-- Top Navigation -->
     <div class="absolute top-0 left-0 w-full flex justify-between items-center p-6 z-20 pointer-events-none">
         <div class="pointer-events-auto flex items-center gap-4">
             <div>
                 <h1 class="text-xl font-bold text-white tracking-tight" style="text-shadow: 0 0 20px rgba(255,255,255,0.2);">3D 机械仿生蝴蝶</h1>
-                <p class="text-[10px] text-blue-400 uppercase tracking-widest font-mono">Bionic Simulator v2.0</p>
+                <p class="text-[10px] text-blue-400 uppercase tracking-widest font-mono">Physics Drive v2.3</p>
             </div>
         </div>
         <div class="pointer-events-auto flex items-center gap-3">
             <button id="openGitHubBtn" class="nav-btn flex items-center gap-2 pr-3">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 <span data-i18n="gh_open_btn">GitHub</span>
-                <div class="h-4 w-px bg-white/20 mx-1"></div>
-                <span id="ghStars" class="text-xs font-mono text-yellow-400">★</span>
             </button>
             <div class="glass-panel rounded-lg p-1 flex">
                 <button id="btnZH" class="px-3 py-1 text-xs font-semibold rounded text-white bg-white/10 transition">CN</button>
@@ -175,41 +157,34 @@
         </div>
     </div>
 
-    <!-- 3D Canvas -->
     <div class="absolute inset-0 z-0">
         <canvas id="mechanism-canvas"></canvas>
     </div>
 
-    <!-- Bottom Control Panel -->
     <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-[92%] max-w-5xl z-10">
         <div class="glass-panel rounded-2xl p-5 flex flex-col md:flex-row gap-6 md:gap-8 items-stretch">
             
-            <!-- SECTION 1: CORE LINKAGES -->
             <div class="flex-1 min-w-[240px]">
                 <div class="flex items-center gap-2 mb-3">
                     <div class="w-1 h-4 bg-red-500 rounded-full"></div>
                     <h3 class="lbl-sm" data-i18n="params_title">连杆参数</h3>
                 </div>
                 <div class="space-y-3">
-                    <!-- A -->
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-bold text-red-400 w-4 text-center font-mono" data-i18n="param_a">A</span>
                         <input id="ra" type="range" min="10" max="200" value="30" step="1" class="flex-1">
                         <input id="a" type="number" value="30" class="param-input">
                     </div>
-                    <!-- B -->
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-bold text-emerald-400 w-4 text-center font-mono" data-i18n="param_b">B</span>
                         <input id="rb" type="range" min="10" max="200" value="85" step="1" class="flex-1">
                         <input id="b" type="number" value="85" class="param-input">
                     </div>
-                    <!-- C -->
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-bold text-purple-400 w-4 text-center font-mono" data-i18n="param_c">C</span>
                         <input id="rc" type="range" min="10" max="200" value="75" step="1" class="flex-1">
                         <input id="c" type="number" value="75" class="param-input">
                     </div>
-                    <!-- D -->
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-bold text-gray-400 w-4 text-center font-mono" data-i18n="param_d">D</span>
                         <input id="rd" type="range" min="10" max="200" value="90" step="1" class="flex-1">
@@ -217,30 +192,45 @@
                     </div>
                 </div>
                 
-                <!-- Playback Controls -->
-                <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/5">
-                    <button id="resetCameraBtn" class="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-gray-300 transition" title="复位视角">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </button>
-                    <button id="reverse-btn" class="px-3 py-1.5 bg-white/5 rounded-lg text-xs font-medium hover:bg-white/10 text-white w-20 transition text-center">正转</button>
-                    <div class="flex-1 flex items-center gap-2">
-                        <span class="text-[10px] text-gray-500">SPEED</span>
-                        <input id="speed-slider" type="range" min="0" max="10" value="3" step="0.1" class="flex-1 h-1 bg-white/10">
+                <div class="mt-4 pt-3 border-t border-white/5">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-[10px] text-gray-400 font-bold tracking-wider">DRIVE SYSTEM</h4>
+                        <div class="text-[9px] text-blue-400 font-mono">
+                            FREQ: <span id="disp_freq" class="text-white font-bold text-xs">0.00</span> Hz
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-[10px] text-gray-500 w-16">Motor RPM</span>
+                        <input id="motorRPM" type="number" value="300" step="10" class="param-input flex-1 text-right pr-2">
+                        <span class="text-[9px] text-gray-600 w-6">r/min</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-[10px] text-gray-500 w-16">Ratio (i)</span>
+                        <input id="reductionRatio" type="number" value="10" min="1" step="0.1" class="param-input flex-1 text-right pr-2">
+                        <span class="text-[9px] text-gray-600 w-6">: 1</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="resetCameraBtn" class="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-gray-300 transition" title="复位视角">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        </button>
+                        <button id="reverse-btn" class="flex-1 py-1.5 bg-white/5 rounded-lg text-xs font-medium hover:bg-white/10 text-white transition text-center border border-white/5">
+                            正转 / 反转
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Divider -->
             <div class="hidden md:block w-px bg-white/10 self-stretch"></div>
 
-            <!-- SECTION 2: LAYOUT CONFIG -->
             <div class="flex-1 min-w-[240px]">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <div class="w-1 h-4 bg-blue-500 rounded-full"></div>
                         <h3 class="lbl-sm" data-i18n="config_title">布局配置</h3>
                     </div>
-                    <!-- New Toggle Buttons for Assembly Mode -->
                     <div class="w-32">
                         <div class="toggle-group">
                             <button id="btnAsmOpen" class="toggle-btn active" data-val="open" data-i18n="asm_open_btn">Open</button>
@@ -251,7 +241,6 @@
                 </div>
                 
                 <div class="space-y-4">
-                    <!-- Frame Angle -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
                             <span data-i18n="control_frame_angle">机架角度</span>
@@ -262,7 +251,6 @@
                             <input id="frameAngle" type="number" class="param-input">
                         </div>
                     </div>
-                    <!-- Height Offset -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
                             <span data-i18n="control_height_diff">垂直高度</span>
@@ -272,7 +260,6 @@
                             <input id="heightOffset" type="number" class="param-input">
                         </div>
                     </div>
-                    <!-- Crank Distance -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
                             <span data-i18n="control_crank_dist">双侧间距</span>
@@ -282,7 +269,6 @@
                             <input id="crankDistance" type="number" class="param-input">
                         </div>
                     </div>
-                    <!-- Wing Distance -->
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
                             <span data-i18n="control_wing_dist">翅根间距</span>
@@ -292,13 +278,20 @@
                             <input id="wingDistance" type="number" class="param-input">
                         </div>
                     </div>
+                    <div class="pt-2 border-t border-white/5">
+                        <div class="flex justify-between text-[10px] text-yellow-500 mb-1 px-1">
+                            <span data-i18n="control_gear_radius">防干涉齿轮/电机半径</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input id="rgearRadius" type="range" min="1" max="50" step="1" value="15" class="flex-1 accent-yellow-500">
+                            <input id="gearRadius" type="number" value="15" class="param-input">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Divider -->
             <div class="hidden md:block w-px bg-white/10 self-stretch"></div>
 
-            <!-- SECTION 3: ANALYTICS -->
             <div class="md:w-60 flex flex-col">
                 <div class="flex items-center gap-2 mb-3">
                     <div class="w-1 h-4 bg-purple-500 rounded-full"></div>
@@ -306,15 +299,12 @@
                 </div>
                 
                 <div class="flex flex-col gap-2 flex-grow">
-                    <!-- Data Grid (Layout Optimized) -->
                     <div class="grid grid-cols-2 gap-2">
-                        <!-- Type: Full Width -->
                         <div class="bg-black/20 rounded p-2 border border-white/5 col-span-2 flex justify-between items-center">
                             <div class="text-[9px] text-gray-500 uppercase">Type</div>
                             <div id="res_classify" class="text-xs font-bold text-gray-200 truncate">—</div>
                         </div>
                         
-                        <!-- Swing -->
                         <div class="bg-black/20 rounded p-2 border border-white/5">
                             <div class="text-[9px] text-gray-500 uppercase">Swing</div>
                             <div class="text-xs font-bold text-gray-200 mt-0.5 font-mono flex items-center">
@@ -323,13 +313,17 @@
                             </div>
                         </div>
 
-                        <!-- K Factor -->
                         <div class="bg-black/20 rounded p-2 border border-white/5">
                             <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_k">K Factor</div>
                             <div id="res_k" class="text-xs font-bold text-gray-200 mt-0.5 font-mono">—</div>
                         </div>
 
-                        <!-- Pressure Angle (Alpha) - Full Width -->
+                        <div class="bg-black/20 rounded p-2 border border-white/5 col-span-2 flex justify-between items-center relative overflow-hidden">
+                            <div class="text-[9px] text-cyan-400 uppercase font-bold" data-i18n="res_center_angle">Flap Center</div>
+                            <div class="text-xs font-bold text-cyan-200 font-mono" id="res_flap_center">—</div>
+                            <div class="absolute bottom-0 right-0 w-8 h-8 border-r border-b border-cyan-500/20 rounded-br pointer-events-none"></div>
+                        </div>
+
                         <div class="bg-black/20 rounded p-2 border border-white/5 col-span-2 flex justify-between items-center">
                             <div class="text-[9px] text-gray-500 uppercase" data-i18n="res_alpha">Max Pressure α</div>
                             <div class="flex items-baseline gap-1">
@@ -339,7 +333,6 @@
                         </div>
                     </div>
 
-                    <!-- Transmission Angle Gauge -->
                     <div class="bg-gradient-to-br from-white/5 to-transparent p-3 rounded-lg border border-white/10 flex-grow flex flex-col justify-center mt-1">
                         <div class="flex justify-between items-baseline mb-2">
                             <span class="text-[10px] text-gray-400">Min Gamma γ</span>
@@ -355,7 +348,6 @@
                     </div>
                 </div>
                 
-                <!-- Status Messages -->
                 <div class="mt-2 h-4 relative">
                     <div id="solveHint" class="absolute w-full text-center text-[10px] text-blue-400 font-mono opacity-80"></div>
                     <div id="warning-message" class="absolute w-full text-center text-[10px] text-amber-500 font-bold"></div>
@@ -364,7 +356,6 @@
         </div>
     </div>
 
-    <!-- Right Sidebar -->
     <div id="sidebar" class="absolute top-0 right-0 h-full w-80 shadow-2xl z-30 flex flex-col backdrop-blur-xl">
         <div class="p-6 border-b border-white/10 flex justify-between items-center">
             <h2 class="font-bold text-white tracking-wide" data-i18n="presets_title">方案库</h2>
@@ -374,8 +365,6 @@
         </div>
         
         <div class="flex-grow overflow-y-auto p-5 space-y-6">
-            
-            <!-- New Preset -->
             <div>
                 <h3 class="lbl-sm mb-2">新建方案</h3>
                 <div class="flex gap-2">
@@ -383,16 +372,10 @@
                     <button id="btnAddPreset" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded-lg text-lg font-light transition shadow-lg shadow-blue-500/20">+</button>
                 </div>
             </div>
-            
-            <!-- List -->
             <div>
                 <h3 class="lbl-sm mb-2">已存方案</h3>
-                <div id="presetList" class="flex flex-col gap-2 min-h-[100px]">
-                    <!-- Items -->
-                </div>
+                <div id="presetList" class="flex flex-col gap-2 min-h-[100px]"></div>
             </div>
-
-            <!-- IO Actions -->
             <div class="pt-6 border-t border-white/10 grid grid-cols-3 gap-3">
                 <button id="btnSave" class="col-span-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs py-2.5 rounded-lg border border-white/5 transition flex flex-col items-center gap-1 group">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -411,12 +394,10 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
     (function() {
-        // 0. Dependency Check
         if (typeof THREE === 'undefined') {
             const warning = document.createElement('div');
             Object.assign(warning.style, {
@@ -429,7 +410,6 @@
             return;
         }
 
-        // --- Core Math (Standard Parallel Logic) ---
         function circleIntersections(x0, y0, r0, x1, y1, r1) { const dx = x1 - x0, dy = y1 - y0; const d = Math.hypot(dx, dy); if (d > r0 + r1 + 1e-9 || d < Math.abs(r0 - r1) - 1e-9 || d < 1e-12) return []; const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d); const h2 = r0 * r0 - a * a; const h = Math.sqrt(Math.max(0, h2)); const xm = x0 + a * dx / d; const ym = y0 + a * dy / d; const rx = -dy * (h / d); const ry = dx * (h / d); return [{ x: xm + rx, y: ym + ry }, { x: xm - rx, y: ym - ry }]; }
         function choosePoint(p1, p2, asmMode) { if (!p1) return null; if (!p2) return p1; return (asmMode === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2); }
         function calculateTransmissionQuality(a, b, c, d) { 
@@ -440,10 +420,7 @@
                 return Math.acos(val) * 180 / Math.PI; 
             }; 
             const gamma1 = getGamma(f1), gamma2 = getGamma(f2);
-            // Critical Transmission Angle (deviation from 90 is bad, closer to 0 or 180 is bad)
-            // Usually defined as min(gamma, 180-gamma). We call this "Min Gamma" for the gauge.
             const minGamma = Math.min(gamma1, 180 - gamma1, gamma2, 180 - gamma2); 
-            // Max Gamma is the largest angle reached (could be > 90).
             const gMin = Math.min(gamma1, gamma2);
             const gMax = Math.max(gamma1, gamma2);
             return { minGamma: minGamma, gMin: gMin, gMax: gMax }; 
@@ -466,14 +443,13 @@
             if (phis.length === 0) return { ok: false, msg: t('err_no_pose') };
             const phiMin = Math.min(...phis); const phiMax = Math.max(...phis);
             const swing = (phiMax - phiMin) * 180 / Math.PI;
+            const midPhi = (phiMax + phiMin) / 2; // Average angle of the rocker in math domain
             
-            // Calculate K (Time Ratio)
             let inc = 0, dec = 0;
             for(let i=1; i<phis.length; i++){ 
                 const dphi = phis[i]-phis[i-1]; const dth = thetas[i]-thetas[i-1]; 
                 if(dphi > 0) inc += dth; else if(dphi < 0) dec += dth; 
             }
-            // K is (Time of Forward) / (Time of Return) or vice versa, usually > 1
             const K = (inc > 1e-6 && dec > 1e-6) ? Math.max(inc,dec) / Math.min(inc,dec) : 1;
             
             const coverage = intervals.reduce((sum, range) => sum + (range[1] - range[0]), 0) / (2 * Math.PI);
@@ -481,7 +457,8 @@
             const classify = classifyGrashof(a,b,c,d);
             let quality = { minGamma: 0, gMax: 0 };
             if (classify.type === 'Crank-Rocker' && crankAFull) quality = calculateTransmissionQuality(a,b,c,d);
-            return { ok: true, swing, K, coverageA: coverage, crankAFull, classify, quality };
+            
+            return { ok: true, swing, K, coverageA: coverage, crankAFull, classify, quality, midPhi };
         }
 
         // --- Helpers ---
@@ -536,7 +513,7 @@
         document.getElementById('resetCameraBtn').addEventListener('click', resetCamera);
 
         // --- 3D Objects ---
-        const params = { a: 30, b: 85, c: 75, d: 90, asm: 'open', crankDistance: 20, wingDistance: 10 };
+        const params = { a: 30, b: 85, c: 75, d: 90, asm: 'open', crankDistance: 20, wingDistance: 10, gearRadius: 15 };
         const mechanisms3D = {};
         const materials = { 
             crank: new THREE.MeshStandardMaterial({ color: '#f87171', metalness: 0.6, roughness: 0.4 }), 
@@ -545,17 +522,54 @@
             frame: new THREE.MeshStandardMaterial({ color: '#4b5563', metalness: 0.7, roughness: 0.3 }), 
             joint: new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.4, roughness: 0.5 }), 
             pivot: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.4, roughness: 0.5 }), 
-            wing: new THREE.MeshStandardMaterial({ color: '#8b5cf6', metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.7, side: THREE.DoubleSide }) 
+            wing: new THREE.MeshStandardMaterial({ color: '#8b5cf6', metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+            gear: new THREE.MeshBasicMaterial({ color: 0xffff00, opacity: 0.25, transparent: true, side: THREE.DoubleSide, depthWrite: false }),
+            axisLine: new THREE.LineDashedMaterial({ color: 0x22d3ee, linewidth: 2, scale: 1, dashSize: 5, gapSize: 3 })
         };
+        
         function createMechanismModels() { 
             const lr = 2.5, jr = 4, pr = 4.5;
             ['L', 'R'].forEach(side => { 
                 const linkGeom = new THREE.CylinderGeometry(lr, lr, 1, 16); linkGeom.translate(0, 0.5, 0); 
-                mechanisms3D[`frame_${side}`] = new THREE.Mesh(linkGeom, materials.frame); mechanisms3D[`coupler_${side}`] = new THREE.Mesh(linkGeom, materials.coupler); mechanisms3D[`crank_${side}`] = new THREE.Mesh(linkGeom, materials.crank); mechanisms3D[`rocker_${side}`] = new THREE.Mesh(linkGeom.clone(), materials.rocker); 
+                mechanisms3D[`frame_${side}`] = new THREE.Mesh(linkGeom, materials.frame); 
+                mechanisms3D[`coupler_${side}`] = new THREE.Mesh(linkGeom, materials.coupler); 
+                mechanisms3D[`crank_${side}`] = new THREE.Mesh(linkGeom, materials.crank); 
+                mechanisms3D[`rocker_${side}`] = new THREE.Mesh(linkGeom.clone(), materials.rocker); 
+                
                 const jGeom = new THREE.SphereGeometry(jr, 16, 16), pGeom = new THREE.SphereGeometry(pr, 16, 16); 
-                mechanisms3D[`joint_O2_${side}`] = new THREE.Mesh(pGeom, materials.pivot); mechanisms3D[`joint_O4_${side}`] = new THREE.Mesh(pGeom, materials.pivot); mechanisms3D[`joint_B_${side}`] = new THREE.Mesh(jGeom, materials.joint); mechanisms3D[`joint_C_${side}`] = new THREE.Mesh(jGeom, materials.joint); 
-                const wingObject = new THREE.Object3D(); mechanisms3D[`wing_object_${side}`] = wingObject; scene.add(wingObject); 
-                scene.add(mechanisms3D[`frame_${side}`], mechanisms3D[`coupler_${side}`], mechanisms3D[`crank_${side}`], mechanisms3D[`rocker_${side}`], mechanisms3D[`joint_O2_${side}`], mechanisms3D[`joint_O4_${side}`], mechanisms3D[`joint_B_${side}`], mechanisms3D[`joint_C_${side}`]); 
+                mechanisms3D[`joint_O2_${side}`] = new THREE.Mesh(pGeom, materials.pivot); 
+                mechanisms3D[`joint_O4_${side}`] = new THREE.Mesh(pGeom, materials.pivot); 
+                mechanisms3D[`joint_B_${side}`] = new THREE.Mesh(jGeom, materials.joint); 
+                mechanisms3D[`joint_C_${side}`] = new THREE.Mesh(jGeom, materials.joint); 
+                
+                // 修正：齿轮模型 - 半径1，高度1的圆柱体，旋转X 90度，使其成为XY平面的"圆饼"
+                const gearGeom = new THREE.CylinderGeometry(1, 1, 1, 64); 
+                gearGeom.rotateX(Math.PI / 2); // 旋转后，Z轴为高度(厚度)，XY平面为圆形
+                mechanisms3D[`gear_${side}`] = new THREE.Mesh(gearGeom, materials.gear);
+                
+                // 扑动中心线
+                const axisPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(100, 0, 0)];
+                const axisGeom = new THREE.BufferGeometry().setFromPoints(axisPoints);
+                const axisLine = new THREE.Line(axisGeom, materials.axisLine);
+                axisLine.computeLineDistances(); 
+                mechanisms3D[`axis_${side}`] = axisLine;
+
+                const wingObject = new THREE.Object3D(); 
+                mechanisms3D[`wing_object_${side}`] = wingObject; 
+                
+                scene.add(wingObject); 
+                scene.add(
+                    mechanisms3D[`frame_${side}`], 
+                    mechanisms3D[`coupler_${side}`], 
+                    mechanisms3D[`crank_${side}`], 
+                    mechanisms3D[`rocker_${side}`], 
+                    mechanisms3D[`joint_O2_${side}`], 
+                    mechanisms3D[`joint_O4_${side}`], 
+                    mechanisms3D[`joint_B_${side}`], 
+                    mechanisms3D[`joint_C_${side}`],
+                    mechanisms3D[`gear_${side}`],
+                    mechanisms3D[`axis_${side}`]
+                ); 
             }); 
             updateWingShape(); 
         }
@@ -570,18 +584,39 @@
             }); 
         }
         
-        let angle = 0, animationSpeed = 0.03, animationDirection = 1;
+        // --- 物理运动状态 ---
+        let angle = 0;
+        let animationDirection = 1;
         let last_C_L = null, last_C_R = null; 
+        
+        const driveState = { motorRPM: 300, ratio: 10, lastTime: 0 };
         function resetAnimationState() { last_C_L = null; last_C_R = null; }
+        
         function choosePointConsistent(side, p1, p2, last_C, asm) {
             if (!p1) return null; if (!p2) return p1; if (!last_C) return (asm === 'open') ? (p1.y >= p2.y ? p1 : p2) : (p1.y <= p2.y ? p1 : p2);
             const dist1 = Math.hypot(p1.x - last_C.x, p1.y - last_C.y), dist2 = Math.hypot(p2.x - last_C.x, p2.y - last_C.y);
             return dist1 <= dist2 ? p1 : p2;
         }
 
-        function update() {
+        // --- 核心循环 ---
+        let globalCenterAngle = 0; // 存储计算出的中心角度用于渲染
+
+        function update(timestamp) {
             requestAnimationFrame(update);
-            angle += animationSpeed * animationDirection;
+            
+            if (!driveState.lastTime) driveState.lastTime = timestamp;
+            const dt = (timestamp - driveState.lastTime) / 1000;
+            driveState.lastTime = timestamp;
+
+            const outputRPM = driveState.motorRPM / driveState.ratio;
+            const omega = (outputRPM * 2 * Math.PI) / 60;
+            if (!isNaN(dt)) { angle += omega * dt * animationDirection; }
+
+            const freq = outputRPM / 60;
+            const dispFreq = document.getElementById('disp_freq');
+            if(dispFreq) dispFreq.innerText = freq.toFixed(2);
+
+            // 几何解算
             const horizDist_O2_O4 = Math.abs(params.crankDistance - params.wingDistance) / 2;
             const vertDist_O2_O4 = Math.sqrt(Math.max(0, params.d * params.d - horizDist_O2_O4 * horizDist_O2_O4));
             
@@ -600,13 +635,88 @@
             if (C_R && !isNaN(C_R.x)) { updateMechEls('R', O4_R, O2_R, C_R, B_R); last_C_R = C_R; }
             controls.update(); renderer.render(scene, camera);
         }
+
+        // 绑定驱动事件
+        const motorEl = document.getElementById('motorRPM');
+        const ratioEl = document.getElementById('reductionRatio');
+        if(motorEl) motorEl.addEventListener('input', (e) => { driveState.motorRPM = parseFloat(e.target.value) || 0; });
+        if(ratioEl) ratioEl.addEventListener('input', (e) => { driveState.ratio = parseFloat(e.target.value) || 1; });
+        const revBtn = document.getElementById('reverse-btn');
+        revBtn.addEventListener('click', () => { 
+            animationDirection *= -1; 
+            revBtn.innerText = animationDirection === 1 ? "正转 (CW)" : "反转 (CCW)";
+        });
+
         function posLink(mesh, p1, p2) { const s=new THREE.Vector3(p1.x,p1.y,0), e=new THREE.Vector3(p2.x,p2.y,0), l=s.distanceTo(e); if(l<1e-6)return; mesh.scale.y = l; mesh.position.copy(s); const d=new THREE.Vector3().subVectors(e,s).normalize(); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d); }
-        function updateMechEls(side, O4, O2, C, B) { mechanisms3D[`joint_O2_${side}`].position.set(O2.x, O2.y, 0); mechanisms3D[`joint_O4_${side}`].position.set(O4.x, O4.y, 0); mechanisms3D[`joint_B_${side}`].position.set(B.x, B.y, 0); mechanisms3D[`joint_C_${side}`].position.set(C.x, C.y, 0); posLink(mechanisms3D[`crank_${side}`], O2, B); posLink(mechanisms3D[`coupler_${side}`], B, C); posLink(mechanisms3D[`rocker_${side}`], O4, C); posLink(mechanisms3D[`frame_${side}`], O4, O2); const wo = mechanisms3D[`wing_object_${side}`]; wo.position.set(O4.x, O4.y, 0); wo.quaternion.copy(mechanisms3D[`rocker_${side}`].quaternion); }
+        
+        function updateMechEls(side, O4, O2, C, B) { 
+            mechanisms3D[`joint_O2_${side}`].position.set(O2.x, O2.y, 0); 
+            mechanisms3D[`joint_O4_${side}`].position.set(O4.x, O4.y, 0); 
+            mechanisms3D[`joint_B_${side}`].position.set(B.x, B.y, 0); 
+            mechanisms3D[`joint_C_${side}`].position.set(C.x, C.y, 0); 
+            
+            posLink(mechanisms3D[`crank_${side}`], O2, B); 
+            posLink(mechanisms3D[`coupler_${side}`], B, C); 
+            posLink(mechanisms3D[`rocker_${side}`], O4, C); 
+            posLink(mechanisms3D[`frame_${side}`], O4, O2); 
+            
+            const wo = mechanisms3D[`wing_object_${side}`]; 
+            wo.position.set(O4.x, O4.y, 0); 
+            wo.quaternion.copy(mechanisms3D[`rocker_${side}`].quaternion);
+
+            // 更新防干涉齿轮位置
+            const gear = mechanisms3D[`gear_${side}`];
+            if(gear) {
+                gear.position.set(O2.x, O2.y, 0);
+                // 修正：比例设置。因为旋转了X轴，现在Z轴是厚度，X和Y是圆面半径。
+                // 之前导致变扁是因为只缩放了X和Z。
+                // Correct scaling: X=Radius, Y=Radius, Z=Thickness
+                gear.scale.set(params.gearRadius, params.gearRadius, 5); // 厚度固定为5
+            }
+
+            // 更新扑动中心线
+            const axis = mechanisms3D[`axis_${side}`];
+            if(axis) {
+                axis.position.set(O4.x, O4.y, 0);
+                // 修正：中心线角度逻辑
+                // 1. 获取机架向量 O2 -> O4 (注意这里是 O2到O4，因为 phi 是基于此基准定义的)
+                // 在数学解算器中，O2=(0,0), O4=(d,0)。基准向量是 (1,0)。
+                // 2. phi 是 rocker 相对于基准向量的角度。
+                // 3. 在3D世界中，我们需要计算 O2->O4 的实际向量角度。
+                const dx = O4.x - O2.x;
+                const dy = O4.y - O2.y;
+                const baseAngle = Math.atan2(dy, dx); // 机架的绝对角度
+                
+                // 左侧: phi 是逆时针角度。实际角度 = baseAngle + (180 - phi)? 
+                // 解算器: O2(0,0), O4(d,0). Rocker从O4出发. phi是Rocker与X轴夹角.
+                // 这里的X轴其实是 Vector(O2->O4).
+                // 所以 3D角度 = baseAngle + phi.
+                // 但是, 左侧机构, O4在左, O2在右? 
+                // 代码中: O4_L = {-w/2, 0}, O2_L = {-c/2, -h}. 
+                // Vector(O2->O4) 指向右上方.
+                
+                // 左侧(L): 直接使用 midPhi (相对于 O2->O4 连线)
+                // 右侧(R): 镜像。相对于 O2->O4 连线，角度是 180 - midPhi (或者 -midPhi，取决于坐标系定义)
+                // 让我们用最稳健的方法：计算 Rocker 的中值点坐标，然后叠加
+                
+                let targetAngle = 0;
+                if (side === 'L') {
+                    // 左侧 phi 是相对于 O2->O4 的逆时针角度
+                    targetAngle = baseAngle + globalCenterAngle; 
+                } else {
+                    // 右侧是镜像的。数学上 phi 是一样的值。
+                    // 但是物理上，O2->O4 向量指向左上方。
+                    // 相对角度应该是 -phi (顺时针) 或者 2PI - phi
+                    targetAngle = baseAngle - globalCenterAngle;
+                }
+                axis.rotation.z = targetAngle;
+            }
+        }
 
         let hasUnsavedChanges = false;
         function recalculate() {
             if (!document.body.dataset.loaded) return; 
-            hasUnsavedChanges = true; // Mark dirty on recalc (unless loading)
+            hasUnsavedChanges = true; 
 
             document.getElementById('solveHint').innerHTML = '';
             const uk = countWeakUnknown();
@@ -631,60 +741,63 @@
             params.asm = document.getElementById('asm_mode').value;
             params.crankDistance = getValueForCompute('crankDistance');
             params.wingDistance = getValueForCompute('wingDistance');
+            params.gearRadius = parseFloat(document.getElementById('gearRadius').value) || 15;
 
-            // --- Auto-sync Angle & Height UI based on current geometry ---
+            // Auto-sync Angle & Height
             if (activeTargetId !== 'frameAngle' && activeTargetId !== 'rframeAngle' && activeTargetId !== 'heightOffset' && activeTargetId !== 'rheightOffset') {
-                const d = params.d;
-                const halfDiff = Math.abs(params.crankDistance - params.wingDistance) / 2;
-                
-                // Sync Angle
+                const d = params.d; const halfDiff = Math.abs(params.crankDistance - params.wingDistance) / 2;
                 const angleRad = Math.acos(Math.min(1, halfDiff / (d > 0 ? d : 1)));
                 const angleDeg = angleRad * 180 / Math.PI;
-                const angleNum = document.getElementById('frameAngle');
-                const angleSlider = document.getElementById('rframeAngle');
-                if (angleNum && angleSlider) { 
-                    angleNum.value = angleDeg.toFixed(1); 
-                    angleSlider.value = angleDeg; 
-                }
-
-                // Sync Height Offset
+                const angleNum = document.getElementById('frameAngle'); const angleSlider = document.getElementById('rframeAngle');
+                if (angleNum && angleSlider) { angleNum.value = angleDeg.toFixed(1); angleSlider.value = angleDeg; }
                 const height = Math.sqrt(Math.max(0, d*d - halfDiff*halfDiff));
-                const hNum = document.getElementById('heightOffset');
-                const hSlider = document.getElementById('rheightOffset');
-                if (hNum && hSlider) {
-                    hNum.value = height.toFixed(1);
-                    hSlider.value = height;
-                }
+                const hNum = document.getElementById('heightOffset'); const hSlider = document.getElementById('rheightOffset');
+                if (hNum && hSlider) { hNum.value = height.toFixed(1); hSlider.value = height; }
             }
             
             saveStateToLocal();
             checkActivePreset(); 
 
             const result = computeAll(params.a, params.b, params.c, params.d, params.asm);
-            const els = { classify: document.getElementById('res_classify'), swing: document.getElementById('res_swing'), gamma: document.getElementById('res_min_gamma'), k: document.getElementById('res_k'), alpha_max: document.getElementById('res_alpha_max'), badge: document.getElementById('res_risk_badge'), bar: document.getElementById('score_bar'), warning: document.getElementById('warning-message') };
+            const els = { 
+                classify: document.getElementById('res_classify'), 
+                swing: document.getElementById('res_swing'), 
+                gamma: document.getElementById('res_min_gamma'), 
+                k: document.getElementById('res_k'), 
+                alpha_max: document.getElementById('res_alpha_max'), 
+                badge: document.getElementById('res_risk_badge'), 
+                bar: document.getElementById('score_bar'), 
+                warning: document.getElementById('warning-message'),
+                flapCenter: document.getElementById('res_flap_center') // New
+            };
             els.warning.textContent = '';
             
             if (!result.ok) {
                 els.classify.textContent = '—'; els.classify.className = 'text-xs font-bold text-gray-500 mt-0.5 truncate';
-                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.k.textContent = '—'; els.alpha_max.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%';
+                els.warning.textContent = result.msg; els.gamma.textContent = '—'; els.k.textContent = '—'; els.alpha_max.textContent = '—'; els.badge.textContent = '—'; els.bar.style.width = '0%'; els.flapCenter.textContent = '—';
             } else {
                 const isCR = result.classify.type === 'Crank-Rocker';
                 els.classify.textContent = t(result.classify.key);
                 els.classify.className = `text-xs font-bold mt-0.5 truncate ${isCR ? 'text-emerald-400' : 'text-amber-400'}`;
                 if (activeTargetId !== 'res_swing') els.swing.value = result.swing.toFixed(1);
-                
-                // New Values
                 els.k.textContent = result.K.toFixed(2);
                 
+                // Update Center Angle
+                globalCenterAngle = result.midPhi; // Store Radian for 3D
+                // The mathematical Phi is relative to the frame line. 
+                // To show "Angle relative to Horizon", we need to factor in the frame angle.
+                // But the user usually just wants the value relative to the frame in mathematical terms, OR relative to horizon.
+                // Let's show the math value first.
+                const centerDeg = result.midPhi * 180 / Math.PI;
+                els.flapCenter.textContent = centerDeg.toFixed(1) + '°';
+
                 if (!isCR) els.warning.textContent = t('warn_not_cr');
 
                 if (isCR && result.quality) {
                     const mg = result.quality.minGamma;
-                    const maxAlpha = 90 - mg; // Max pressure angle is complement of min transmission angle (deviation from 90)
-
+                    const maxAlpha = 90 - mg; 
                     els.gamma.textContent = mg.toFixed(1) + '°';
                     els.alpha_max.textContent = maxAlpha.toFixed(1) + '°';
-                    
                     let score = (mg > 45) ? 100 : (mg / 45) * 100;
                     let sk = 'risk_low', sc = 'bg-emerald-500/20 text-emerald-400', bc = '#34d399';
                     if (mg < 25) { sk = 'risk_critical'; sc = 'bg-red-500/20 text-red-400'; bc = '#ef4444'; }
@@ -702,16 +815,12 @@
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('toggleSidebarBtn');
         const closeBtn = document.getElementById('closeSidebarBtn');
-        
-        function toggleSidebar(open) {
-            if (open) sidebar.classList.add('open');
-            else sidebar.classList.remove('open');
-        }
+        function toggleSidebar(open) { if (open) sidebar.classList.add('open'); else sidebar.classList.remove('open'); }
         toggleBtn.addEventListener('click', () => toggleSidebar(true));
         closeBtn.addEventListener('click', () => toggleSidebar(false));
 
         function syncNR(id){ const n=document.getElementById(id), r=document.getElementById('r'+id); if(!n||!r)return; r.addEventListener('input',()=>{n.value=r.value;clearAuto(id);recalculate();}); n.addEventListener('input',()=>{const v=parseFloat(n.value);if(isFinite(v))r.value=v;clearAuto(id);recalculate();}); }
-        ['a','b','c','d', 'crankDistance', 'wingDistance'].forEach(syncNR);
+        ['a','b','c','d', 'crankDistance', 'wingDistance', 'gearRadius'].forEach(syncNR);
 
         function syncAngle(id) {
             const num = document.getElementById(id), rng = document.getElementById('r'+id); if(!num||!rng) return;
@@ -744,88 +853,61 @@
         }
         syncHeight('heightOffset');
 
-        document.getElementById('speed-slider').addEventListener('input', e => { animationSpeed = parseFloat(e.target.value) / 100; });
-        const revBtn = document.getElementById('reverse-btn');
-        revBtn.addEventListener('click', () => { animationDirection *= -1; updateLangUI(); });
-        
-        // --- Assembly Mode Toggle Logic ---
+        // Assembly Mode
         const asmInput = document.getElementById('asm_mode');
         const btnAsmOpen = document.getElementById('btnAsmOpen');
         const btnAsmCrossed = document.getElementById('btnAsmCrossed');
-
         function setAsmMode(mode) {
             asmInput.value = mode;
-            if (mode === 'open') {
-                btnAsmOpen.classList.add('active');
-                btnAsmCrossed.classList.remove('active');
-            } else {
-                btnAsmCrossed.classList.add('active');
-                btnAsmOpen.classList.remove('active');
-            }
-            resetAnimationState();
-            recalculate();
+            if (mode === 'open') { btnAsmOpen.classList.add('active'); btnAsmCrossed.classList.remove('active'); } 
+            else { btnAsmCrossed.classList.add('active'); btnAsmOpen.classList.remove('active'); }
+            resetAnimationState(); recalculate();
         }
-
         btnAsmOpen.addEventListener('click', () => setAsmMode('open'));
         btnAsmCrossed.addEventListener('click', () => setAsmMode('crossed'));
 
-        // --- Config / Presets ---
+        // Config / Presets
         function getConfigObj() {
             return {
                 a: getValueForCompute('a'), b: getValueForCompute('b'), c: getValueForCompute('c'), d: getValueForCompute('d'),
                 asm: document.getElementById('asm_mode').value,
                 crankDistance: getValueForCompute('crankDistance'), wingDistance: getValueForCompute('wingDistance'),
-                speed: parseFloat(document.getElementById('speed-slider').value)
+                gearRadius: parseFloat(document.getElementById('gearRadius').value), 
+                motorRPM: driveState.motorRPM, ratio: driveState.ratio 
             };
         }
         function applyConfigObj(cfg) {
             if(!cfg) return;
             const sv = (id, v) => { const el=document.getElementById(id), rng=document.getElementById('r'+id); if(el&&v!=null){el.value=v;clearAuto(id);} if(rng&&v!=null)rng.value=v; };
             sv('a', cfg.a); sv('b', cfg.b); sv('c', cfg.c); sv('d', cfg.d); sv('crankDistance', cfg.crankDistance); sv('wingDistance', cfg.wingDistance);
-            if(cfg.asm) setAsmMode(cfg.asm); // Use the new setter
-            if(cfg.speed!=null) document.getElementById('speed-slider').value = cfg.speed;
+            sv('gearRadius', cfg.gearRadius || 15);
+            if(cfg.asm) setAsmMode(cfg.asm); 
+            if(cfg.motorRPM != null) { driveState.motorRPM = cfg.motorRPM; const mEl = document.getElementById('motorRPM'); if(mEl) mEl.value = cfg.motorRPM; }
+            if(cfg.ratio != null) { driveState.ratio = cfg.ratio; const rEl = document.getElementById('reductionRatio'); if(rEl) rEl.value = cfg.ratio; }
             resetAnimationState(); recalculate();
         }
 
-        let presets = [];
-        const PRESET_KEY = 'butterfly_presets_v2';
-        
-        function loadPresets() {
-            try { presets = JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'); } catch(e) { presets=[]; }
-            renderPresets();
-        }
+        let presets = []; const PRESET_KEY = 'butterfly_presets_v2';
+        function loadPresets() { try { presets = JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'); } catch(e) { presets=[]; } renderPresets(); }
         function savePresets() { localStorage.setItem(PRESET_KEY, JSON.stringify(presets)); renderPresets(); }
         function addPreset() {
-            const inp = document.getElementById('newPresetName');
-            let name = inp.value.trim(); if(!name) name = t('preset_default_name') + ' ' + (presets.length + 1);
-            presets.push({ name, config: getConfigObj() });
-            savePresets(); inp.value = ''; showToast(t('msg_preset_added'));
+            const inp = document.getElementById('newPresetName'); let name = inp.value.trim(); 
+            if(!name) name = t('preset_default_name') + ' ' + (presets.length + 1);
+            presets.push({ name, config: getConfigObj() }); savePresets(); inp.value = ''; showToast(t('msg_preset_added'));
         }
-        
-        // Helper to safely add an imported preset with rename logic
         function addImportedPreset(name, config) {
-            let uniqueName = name;
-            let counter = 1;
-            while(presets.some(p => p.name === uniqueName)) {
-                uniqueName = `${name} (${counter++})`;
-            }
-            presets.push({ name: uniqueName, config: config });
-            savePresets();
+            let uniqueName = name; let counter = 1;
+            while(presets.some(p => p.name === uniqueName)) uniqueName = `${name} (${counter++})`;
+            presets.push({ name: uniqueName, config: config }); savePresets();
         }
-
-        function deletePreset(idx) {
-            if(confirm(t('msg_confirm_del'))) { presets.splice(idx, 1); savePresets(); }
-        }
+        function deletePreset(idx) { if(confirm(t('msg_confirm_del'))) { presets.splice(idx, 1); savePresets(); } }
         function renderPresets() {
             const list = document.getElementById('presetList'); list.innerHTML = '';
             if(presets.length === 0) { list.innerHTML = `<div class="text-[10px] text-gray-500 text-center py-2">${t('no_presets')}</div>`; return; }
             presets.forEach((p, idx) => {
                 const el = document.createElement('div'); el.className = 'preset-chip';
                 el.innerHTML = `<span class="truncate flex-1" title="${p.name}">${p.name}</span> <div class="preset-delete">×</div>`;
-                el.onclick = (e) => { 
-                    if(e.target.closest('.preset-delete')) { e.stopPropagation(); deletePreset(idx); } 
-                    else applyPreset(idx); 
-                };
+                el.onclick = (e) => { if(e.target.closest('.preset-delete')) { e.stopPropagation(); deletePreset(idx); } else applyPreset(idx); };
                 list.appendChild(el);
             });
             checkActivePreset();
@@ -838,13 +920,10 @@
                 const match = Math.abs(c.a-cur.a)<0.01 && Math.abs(c.b-cur.b)<0.01 && Math.abs(c.c-cur.c)<0.01 && Math.abs(c.d-cur.d)<0.01 && Math.abs(c.crankDistance-cur.crankDistance)<0.1;
                 if(match) activeIdx = i;
             });
-            Array.from(document.getElementById('presetList').children).forEach((el, i) => {
-                if(i===activeIdx) el.classList.add('active'); else el.classList.remove('active');
-            });
+            Array.from(document.getElementById('presetList').children).forEach((el, i) => { if(i===activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
         }
         document.getElementById('btnAddPreset').addEventListener('click', addPreset);
         
-        // --- Persistence ---
         function saveStateToLocal() { try { localStorage.setItem('butterfly_autosave', JSON.stringify(getConfigObj())); } catch(e){} }
         function loadInitialState() {
             if(window.location.hash.length>1) {
@@ -856,155 +935,71 @@
             if(saved) try{ applyConfigObj(JSON.parse(saved)); } catch(e){}
         }
 
-        // --- File IO (Import Logic Updated) ---
         function showToast(m){const t=document.getElementById('toast');t.innerText=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
         document.getElementById('btnShare').onclick = () => { const p=new URLSearchParams(getConfigObj()); navigator.clipboard.writeText(location.origin+location.pathname+'#'+p.toString()).then(()=>showToast(t('msg_link_copied'))); };
         
         document.getElementById('btnSave').onclick = async () => {
-            if (presets.length === 0) {
-                showToast("请先在上方添加并保存至少一个方案");
-                return;
-            }
-            
+            if (presets.length === 0) { showToast("请先在上方添加并保存至少一个方案"); return; }
             const zip = new JSZip();
-            presets.forEach(p => {
-                const safeName = p.name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'preset';
-                zip.file(`${safeName}.json`, JSON.stringify(p.config, null, 2));
-            });
-
-            const now = new Date();
-            const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-            const zipName = `Butterfly_Configs_${timeStr}.zip`;
-
+            presets.forEach(p => { const safeName = p.name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'preset'; zip.file(`${safeName}.json`, JSON.stringify(p.config, null, 2)); });
+            const now = new Date(); const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
             try {
                 const content = await zip.generateAsync({type:"blob"});
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
-                a.download = zipName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(a.href);
-                showToast(t('msg_saved'));
-                hasUnsavedChanges = false;
-            } catch(e) {
-                console.error(e);
-                showToast("打包失败");
-            }
+                const a = document.createElement('a'); a.href = URL.createObjectURL(content); a.download = `Butterfly_Configs_${timeStr}.zip`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+                showToast(t('msg_saved')); hasUnsavedChanges = false;
+            } catch(e) { console.error(e); showToast("打包失败"); }
         };
 
         document.getElementById('btnLoad').onclick = () => document.getElementById('fileInput').click();
-        
         document.getElementById('fileInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            
-            // Reset input so same file can be selected again
-            e.target.value = '';
-
+            const file = e.target.files[0]; if(!file) return; e.target.value = '';
             try {
                 if (file.name.endsWith('.zip')) {
-                    const zip = await JSZip.loadAsync(file);
-                    let count = 0;
-                    
-                    const promises = [];
+                    const zip = await JSZip.loadAsync(file); let count = 0; const promises = [];
                     zip.forEach((relativePath, zipEntry) => {
                         if (!zipEntry.dir && zipEntry.name.toLowerCase().endsWith('.json')) {
-                            // Extract filename without extension for preset name
-                            // Handles paths inside zip if present (e.g., folder/myConfig.json -> myConfig)
                             const baseName = zipEntry.name.split('/').pop().replace(/\.json$/i, '');
-                            
-                            const promise = zipEntry.async("string").then(content => {
-                                try {
-                                    const cfg = JSON.parse(content);
-                                    addImportedPreset(baseName, cfg);
-                                    count++;
-                                } catch (err) {
-                                    console.warn(`Failed to parse ${zipEntry.name}`);
-                                }
-                            });
-                            promises.push(promise);
+                            promises.push(zipEntry.async("string").then(content => { try { addImportedPreset(baseName, JSON.parse(content)); count++; } catch (err) {} }));
                         }
                     });
-                    
                     await Promise.all(promises);
-                    if (count > 0) showToast(`成功导入 ${count} 个方案`);
-                    else showToast("压缩包内未找到有效配置");
-                    
+                    if (count > 0) showToast(`成功导入 ${count} 个方案`); else showToast("压缩包内未找到有效配置");
                 } else if (file.name.endsWith('.json')) {
-                    const text = await file.text();
-                    const cfg = JSON.parse(text);
-                    const baseName = file.name.replace(/\.json$/i, '');
-                    addImportedPreset(baseName, cfg);
-                    showToast("方案已导入");
-                } else {
-                    alert("仅支持 .json 或 .zip 文件");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("文件读取失败");
-            }
+                    const text = await file.text(); const baseName = file.name.replace(/\.json$/i, '');
+                    addImportedPreset(baseName, JSON.parse(text)); showToast("方案已导入");
+                } else { alert("仅支持 .json 或 .zip 文件"); }
+            } catch (err) { console.error(err); alert("文件读取失败"); }
         });
 
         document.getElementById('openGitHubBtn').addEventListener('click', () => { window.open('https://github.com/StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator', '_blank'); });
+        window.addEventListener('beforeunload', (e) => { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
 
-        // --- Stars Fetch (Robust) ---
-        async function fetchGitHubStars() {
-            const el = document.getElementById('ghStars');
-            if(!el) return;
-            
-            if (typeof navigator.onLine !== 'undefined' && !navigator.onLine) {
-                el.textContent = ''; 
-                return;
-            }
-
-            const REPO = 'StarryGuli/3D-Mechanical-Bionic-Butterfly-Simulator';
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); 
-
-            try {
-                const response = await fetch(`https://api.github.com/repos/${REPO}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.stargazers_count != null) el.textContent = `★ ${data.stargazers_count}`;
-                }
-            } catch (e) {
-                console.debug('GitHub API skipped');
-            }
-        }
-
-        window.addEventListener('beforeunload', (e) => {
-            if (hasUnsavedChanges) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        });
-
-        // --- I18N ---
         const STATE = { lang: 'zh-CN' };
         const I18N = {
             'zh-CN': {
                 title: "3D 机械仿生蝴蝶", params_title: "连杆参数", param_a: "A", param_b: "B", param_c: "C", param_d: "D",
                 results_title: "分析", config_title: "布局配置", asm_label: "装配模式", control_frame_angle: "机架角度", control_crank_dist: "双侧间距",
-                control_wing_dist: "翅根间距", control_height_diff: "垂直高度", presets_title: "方案库", preset_ph: "输入新方案名称...", preset_default_name: "方案",
+                control_wing_dist: "翅根间距", control_height_diff: "垂直高度", control_gear_radius: "防干涉齿轮/电机半径", 
+                presets_title: "方案库", preset_ph: "输入新方案名称...", preset_default_name: "方案",
                 msg_preset_added: "方案已保存", msg_confirm_del: "确定要删除这个方案吗？", no_presets: "暂无保存的方案",
                 msg_link_copied: "链接已复制", msg_saved: "文件打包下载中", msg_loaded: "读取成功", btn_save: "打包导出", btn_load: "导入", btn_share: "生成链接",
                 solve_hint_ok: "已反推 {id} ≈ {val}", warn_not_cr: "非曲柄摇杆结构", err_no_assembly: "无法装配", err_no_pose: "无解",
                 control_rev_fwd: "正转", control_rev_rev: "反转", risk_low: "运行平稳", risk_high: "注意惯性", risk_critical: "极高风险",
-                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ", res_k: "行程速比 K", res_alpha: "最大压力角 α",
+                res_classify: "类型", res_swing: "摆角", res_trans_angle: "最小传动角 γ", res_k: "行程速比 K", res_alpha: "最大压力角 α", res_center_angle: "扑动中心角",
                 gh_open_btn: "GitHub", non_grashof: "非Grashof", crank_rocker: "曲柄摇杆", grashof: "普通Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             },
             'en': {
                 title: "3D Bionic Butterfly", params_title: "Linkages", param_a: "A", param_b: "B", param_c: "C", param_d: "D",
                 results_title: "Metrics", config_title: "Layout", asm_label: "Assembly", control_frame_angle: "Angle", control_crank_dist: "Width",
-                control_wing_dist: "Gap", control_height_diff: "Height Diff", presets_title: "Presets", preset_ph: "Preset name...", preset_default_name: "Preset",
+                control_wing_dist: "Gap", control_height_diff: "Height Diff", control_gear_radius: "Clearance Radius",
+                presets_title: "Presets", preset_ph: "Preset name...", preset_default_name: "Preset",
                 msg_preset_added: "Preset Saved", msg_confirm_del: "Delete this preset?", no_presets: "No presets yet",
                 msg_link_copied: "Link copied", msg_saved: "Downloading Zip", msg_loaded: "Loaded", btn_save: "Export All", btn_load: "Import", btn_share: "Copy Link",
                 solve_hint_ok: "Solved {id} ≈ {val}", warn_not_cr: "Not Crank-Rocker", err_no_assembly: "Bad Assembly", err_no_pose: "No Solution",
                 control_rev_fwd: "Play", control_rev_rev: "Rev", risk_low: "Stable", risk_high: "Inertia Risk", risk_critical: "Critical",
-                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ", res_k: "K Factor", res_alpha: "Max Pressure α",
+                res_classify: "Type", res_swing: "Swing", res_trans_angle: "Min Gamma γ", res_k: "K Factor", res_alpha: "Max Pressure α", res_center_angle: "Flap Center",
                 gh_open_btn: "GitHub", non_grashof: "Non-Grashof", crank_rocker: "Crank-Rocker", grashof: "Grashof",
                 asm_open_btn: "Open", asm_crossed_btn: "Cross"
             }
@@ -1012,7 +1007,6 @@
         function t(k) { return I18N[STATE.lang][k] || k; }
         function updateLangUI() {
             document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = t(el.getAttribute('data-i18n')));
-            document.getElementById('reverse-btn').innerText = animationDirection===1 ? t('control_rev_fwd') : t('control_rev_rev');
             document.getElementById('newPresetName').placeholder = t('preset_ph');
         }
         function setLang(l) { 
@@ -1023,13 +1017,8 @@
         }
         document.getElementById('btnZH').onclick = () => setLang('zh-CN'); document.getElementById('btnEN').onclick = () => setLang('en');
         
-        // --- Init ---
         init3D(); createMechanismModels(); loadPresets(); loadInitialState(); setLang('zh-CN'); update(); 
-        
-        // Safe fetch call at end
-        fetchGitHubStars();
-        
-        document.body.dataset.loaded = "true"; // Flag to enable dirty check
+        document.body.dataset.loaded = "true"; 
     })();
     </script>
 </body>
